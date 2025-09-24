@@ -1,0 +1,12 @@
+C:\Users\giaco\OneDrive\Desktop\UNIVERSITA\POLITO\1_ANNO\2_SEMESTRE\PdS Programmazione di sistema\progetto\G20\Ruggine\target\debug\deps\libserde-8ffc5d44f91135c4.rmeta: C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\lib.rs C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\integer128.rs C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\private\mod.rs C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\private\de.rs C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\private\ser.rs C:\Users\giaco\OneDrive\Desktop\UNIVERSITA\POLITO\1_ANNO\2_SEMESTRE\PdS\ Programmazione\ di\ sistema\progetto\G20\Ruggine\target\debug\build\serde-cd67db5c8454b89f\out/private.rs
+
+C:\Users\giaco\OneDrive\Desktop\UNIVERSITA\POLITO\1_ANNO\2_SEMESTRE\PdS Programmazione di sistema\progetto\G20\Ruggine\target\debug\deps\serde-8ffc5d44f91135c4.d: C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\lib.rs C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\integer128.rs C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\private\mod.rs C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\private\de.rs C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\private\ser.rs C:\Users\giaco\OneDrive\Desktop\UNIVERSITA\POLITO\1_ANNO\2_SEMESTRE\PdS\ Programmazione\ di\ sistema\progetto\G20\Ruggine\target\debug\build\serde-cd67db5c8454b89f\out/private.rs
+
+C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\lib.rs:
+C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\integer128.rs:
+C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\private\mod.rs:
+C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\private\de.rs:
+C:\Users\giaco\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.226\src\private\ser.rs:
+C:\Users\giaco\OneDrive\Desktop\UNIVERSITA\POLITO\1_ANNO\2_SEMESTRE\PdS\ Programmazione\ di\ sistema\progetto\G20\Ruggine\target\debug\build\serde-cd67db5c8454b89f\out/private.rs:
+
+# env-dep:OUT_DIR=C:\\Users\\giaco\\OneDrive\\Desktop\\UNIVERSITA\\POLITO\\1_ANNO\\2_SEMESTRE\\PdS Programmazione di sistema\\progetto\\G20\\Ruggine\\target\\debug\\build\\serde-cd67db5c8454b89f\\out
