@@ -1,0 +1,20 @@
+# Rust build
+/target/
+
+# Output di Cargo
+**/*.rs.bk
+
+# File di log
+*.log
+
+# File temporanei di sistema
+.DS_Store
+Thumbs.db
+
+# File di configurazione dell’IDE
+.vscode/
+.idea/
+
+# File di backup dell’editor
+*~
+*.swp
