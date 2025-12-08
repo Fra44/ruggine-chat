@@ -9,11 +9,11 @@ use super::args::{ CreatePrivateChat, CreateGroupChat };
 #[derive(Insertable)]
 #[table_name = "chats"]
 pub struct NewChat<'a> {
-    chat_type: &'a str, // "PRIVATE" or "GROUP"
-    user_id_1: Option<i32>, // NOT NULL only if chat_type == "PRIVATE"
-    user_id_2: Option<i32>, // NOT NULL only if chat_type == "PRIVATE"
-    created_at: Option<chrono::NaiveDateTime>,
-    group_name: Option<&'a str>, // NOT NULL only if chat_type == "GROUP"
+    pub chat_type: &'a str, // "PRIVATE" or "GROUP"
+    pub user_id_1: Option<i32>, // NOT NULL only if chat_type == "PRIVATE"
+    pub user_id_2: Option<i32>, // NOT NULL only if chat_type == "PRIVATE"
+    pub created_at: Option<chrono::NaiveDateTime>,
+    pub group_name: Option<&'a str>, // NOT NULL only if chat_type == "GROUP"
 }
 
 /**

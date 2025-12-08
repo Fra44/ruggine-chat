@@ -9,8 +9,8 @@ use super::args::{ CreateUser };
 #[derive(Insertable)]
 #[table_name = "users"]
 pub struct NewUser<'a> {
-    username: &'a str,
-    hashed_password: &'a str,
+    pub username: &'a str,
+    pub hashed_password: &'a str,
 }
 
 /**
