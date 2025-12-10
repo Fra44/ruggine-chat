@@ -3,6 +3,7 @@ mod model;
 mod api;
 mod repository;
 mod auth;
+mod monitor_cpu;
 
 use actix_web::{ App, HttpServer, web, middleware::Logger };
 use std::io::Result;
@@ -17,6 +18,8 @@ async fn main() -> Result<()> {
         std::env::set_var("RUST_BACKTRACE", "1");
         env_logger::init();
     }
+
+    monitor_cpu::start_logging();
 
     HttpServer::new(move || {
         let logger = Logger::default();
