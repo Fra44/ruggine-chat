@@ -19,12 +19,12 @@ pub struct CreateUser {
  * datas received from the client to login 
  * # Fields
  * `username` - the username of the user trying to login
- * `hashed_password` - the hashed password of the user trying to login
+ * `plain_password` - the plain password of the user trying to login (will be hashed and verified on backend)
  */
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoginUser {
     pub username: String,
-    pub hashed_password: String,
+    pub plain_password: String,
 }
 
 /* CHATS ----------------------------------------------------------------------------------------- */

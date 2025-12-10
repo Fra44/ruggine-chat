@@ -1,5 +1,4 @@
-use std::fmt::Display;
-use derive_more::Display;
+use std::fmt;
 use actix_web::{
     HttpResponse,
     body,
@@ -13,13 +12,29 @@ use actix_web::{
 use serde::{ Deserialize, Serialize };
 use crate::repository::args::{ CreateUser, LoginUser };
 
-#[derive(Debug, Display)]
+#[derive(Debug)]
 pub enum UserError {
-    UserNotFound, // in case of login with wrong username (or password !!)
-    UsernameAlreadyExists, // in case of trying to register with existing username,
-    BadUserRequest, // general error if none of the above ones is matched
+    UserNotFound,
+    UsernameAlreadyExists,
+    BadUserRequest,
+    InvalidCredentials,
+    RegistrationFailed(String),
 }
 
+/// Implement Display for UserError to provide error messages
+impl fmt::Display for UserError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            UserError::UserNotFound => write!(f, "User not found"),
+            UserError::UsernameAlreadyExists => write!(f, "Username already exists"),
+            UserError::BadUserRequest => write!(f, "Bad user request"),
+            UserError::InvalidCredentials => write!(f, "Invalid credentials"),
+            UserError::RegistrationFailed(msg) => write!(f, "Registration failed: {}", msg),
+        }
+    }
+}
+
+/// Implement ResponseError for UserError to convert "application" errors into HTTP responses
 impl ResponseError for UserError {
     fn error_response(&self) -> HttpResponse<body::BoxBody> {
         HttpResponse::build(self.status_code())
@@ -32,8 +47,26 @@ impl ResponseError for UserError {
             UserError::UserNotFound => StatusCode::NOT_FOUND,
             UserError::UsernameAlreadyExists => StatusCode::CONFLICT,
             UserError::BadUserRequest => StatusCode::BAD_REQUEST,
+            UserError::InvalidCredentials => StatusCode::UNAUTHORIZED,
+            UserError::RegistrationFailed(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
+}
+
+/// Response structure for successful login
+#[derive(Debug, Serialize)]
+pub struct LoginResponse {
+    pub token: String,
+    pub user_id: i32,
+    pub username: String,
+}
+
+/// Response structure for successful registration
+#[derive(Debug, Serialize)]
+pub struct RegisterResponse {
+    pub user_id: i32,
+    pub username: String,
+    pub message: String,
 }
 
 /**
@@ -46,9 +79,18 @@ pub async fn register_user(body: Json<CreateUser>) -> Result<HttpResponse, UserE
     let user = crate::repository::users::find_user_by_username(&body.username);
     if let Some(_) = user {
         return Err(UserError::UsernameAlreadyExists);
-    } else {
-        crate::repository::users::register_user(body.into_inner());
-        Ok(HttpResponse::Ok().body("User registered successfully"))
+    }
+
+    match crate::repository::users::register_user(body.into_inner()) {
+        Ok(user) => {
+            let response = RegisterResponse {
+                user_id: user.id,
+                username: user.username,
+                message: "User registered successfully".to_string(),
+            };
+            Ok(HttpResponse::Created().json(response))
+        }
+        Err(e) => Err(UserError::RegistrationFailed(e)),
     }
 }
 
@@ -62,11 +104,24 @@ pub async fn login_user(body: Json<LoginUser>) -> Result<HttpResponse, UserError
     let user_opt = crate::repository::users::find_user_by_username(&body.username);
     match user_opt {
         Some(user) => {
-            let hashed_input_password = format!("hashed_{}", body.hashed_password); // Placeholder for hashing logic
-            if user.hashed_password == hashed_input_password {
-                Ok(HttpResponse::Ok().body("Login successful"))
-            } else {
-                Err(UserError::UserNotFound)
+            // Verify the password using bcrypt
+            match crate::auth::verify_password(&body.plain_password, &user.hashed_password) {
+                Ok(true) => {
+                    // Create JWT token
+                    match crate::auth::create_token(user.id, &user.username) {
+                        Ok(token) => {
+                            let response = LoginResponse {
+                                token,
+                                user_id: user.id,
+                                username: user.username,
+                            };
+                            Ok(HttpResponse::Ok().json(response))
+                        }
+                        Err(_) => Err(UserError::BadUserRequest),
+                    }
+                }
+                Ok(false) => Err(UserError::InvalidCredentials),
+                Err(_) => Err(UserError::BadUserRequest),
             }
         }
         None => Err(UserError::UserNotFound),

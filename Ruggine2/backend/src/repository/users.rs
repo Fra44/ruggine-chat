@@ -30,25 +30,30 @@ pub struct User {
  * # Arguments
  * `user` - A CreateUser struct containing the username and plain password of the user to be registered.
  */
-pub fn register_user(user: CreateUser) {
+pub fn register_user(user: CreateUser) -> Result<User, String> {
     println!("Registering new user with username: {:?}", user.username);
 
     use crate::schema::users::dsl::*;
 
-    let connection = &mut establish_connection();
+    let mut connection = establish_connection();
 
-    let my_hashed_password = format!("hashed_{}", user.plain_password); // Placeholder for hashing logic
+    // Hash the password using bcrypt
+    let hashed_pass = crate::auth::hash_password(&user.plain_password)?;
 
     let new_user = NewUser {
         username: &user.username,
-        hashed_password: &my_hashed_password,
+        hashed_password: &hashed_pass,
     };
 
     diesel
         ::insert_into(users)
         .values(&new_user)
-        .execute(connection)
-        .expect("Error saving new user");
+        .execute(&mut connection)
+        .map_err(|e| format!("Error saving new user: {}", e))?;
+
+    // Return the newly created user
+    find_user_by_username(&user.username)
+        .ok_or_else(|| "Failed to retrieve newly created user".to_string())
 }
 
 /**
@@ -61,11 +66,11 @@ pub fn register_user(user: CreateUser) {
 pub fn find_user_by_username(target_username: &str) -> Option<User> {
     use crate::schema::users::dsl::*;
 
-    let connection = &mut establish_connection();
+    let mut connection = establish_connection();
 
     let result = users
         .filter(username.eq(target_username))
-        .first::<User>(connection)
+        .first::<User>(&mut connection)
         .optional()
         .expect("Error loading user");
     result
@@ -81,11 +86,11 @@ pub fn find_user_by_username(target_username: &str) -> Option<User> {
 pub fn find_user_by_id(target_id: i32) -> Option<User> {
     use crate::schema::users::dsl::*;
 
-    let connection = &mut establish_connection();
+    let mut connection = establish_connection();
 
     let result = users
         .filter(id.eq(target_id))
-        .first::<User>(connection)
+        .first::<User>(&mut connection)
         .optional()
         .expect("Error loading user");
 
