@@ -34,7 +34,9 @@ async fn main() -> Result<()> {
             .service(
                 web::scope("/api/chats")
                     .wrap(auth_middleware.clone())
-                    .service(api::chats::test)
+                    .service(api::chats::get_chats)
+                    .service(api::messages::get_chat_messages)
+                    .service(api::messages::post_chat_message)
                     // .service(api::chats::get_chats) // => to add methods later
             )
             .service(

@@ -8,7 +8,7 @@ const BASE_URL = 'http://localhost:8080/api';
 /**
  * utility function to get the stored token from localStorage
  */
-export const getToken = () => { localStorage.getItem('token'); };
+export const getToken = () => localStorage.getItem('token'); ;
 
 /**
  * body payload to attach to the request for registering a new user
@@ -44,6 +44,13 @@ export interface LoginResponse {
     username: string;
 }
 
+/**
+ * body payload to attach to the request for sending a new message
+ */
+export interface SendMessagePayload {
+    chat_id: number;
+    content: string;
+}
 
 /// API Calls section :
 
@@ -76,3 +83,12 @@ export const registerUser = async (
     }
     return res.json();
 };
+
+// for the requests that require authentication, we will need to add the Authorization header with the token by using
+// the getToken() utility function defined above IN the headers :
+/*
+ headers: {
+     "Content-Type": "application/json
+     "Authorization": `Bearer ${getToken()}`    // this will "take" the token from localStorage and add it to the request headers
+}
+*/

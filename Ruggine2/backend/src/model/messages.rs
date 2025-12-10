@@ -1,0 +1,82 @@
+
+/** This file contains the utilities to "use" a Chat object WITHOUT directly interacting with the one
+ * extracted/inserted from/to the DB  */
+
+use serde::{ Serialize, Deserialize };
+
+use crate::model::chats::is_user_part_of_chat;
+
+/// this is the message "obtained" when the user "retrieves" the
+/// ones from a chat (i.e., GET /api/chats/{chat_id}/messages)
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MessageDTO {
+    pub id: i32,
+    // pub chat_id: i32,    // --> useless because the messages are retrieved for a specific chat already
+    pub sender_id: i32,
+    pub content: String,
+    pub sent_at: String,
+}
+
+impl From<crate::repository::messages::Message> for MessageDTO {
+    fn from(message: crate::repository::messages::Message) -> Self {
+        MessageDTO {
+            id: message.id,
+            // chat_id: message.chat_id,
+            sender_id: message.sender_id,
+            content: message.content,
+            sent_at: message.sent_at
+                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
+        }
+    }
+}
+
+/// Function to map a vector of Message objects (directly retrieved from DB) to a vector of MessageDTO objects
+/// (that are the business-logic version of Message)
+/// # Arguments
+/// `messages` - A vector of Message objects retrieved from the database.
+/// # Returns
+/// A vector of MessageDTO objects.
+pub fn map_messages_to_dto(messages: Vec<crate::repository::messages::Message>) -> Vec<MessageDTO> {
+    messages.into_iter().map(MessageDTO::from).collect()
+}
+
+/// Function to map a single Message object (directly retrieved from DB) to a MessageDTO object
+/// (that is the business-logic version of Message)
+/// # Arguments
+/// `message` - A Message object retrieved from the database.
+/// # Returns
+/// A MessageDTO object.
+pub fn map_message_to_dto(message: crate::repository::messages::Message) -> MessageDTO {
+    MessageDTO::from(message)
+}
+
+/// Function to send a message in a chat (private or group).
+/// # Arguments
+/// `user_id` - The ID of the user sending the message.
+/// `chat_id` - The ID of the group chat where the message is being sent.
+/// `content` - The content of the message being sent.
+pub fn send_message(user_id: i32, chat_id: i32, content: String) {
+    // first we need to check if user_id is part of chat_id
+    let is_part_res = is_user_part_of_chat(user_id, chat_id);
+    match is_part_res {
+        Ok(is_part) => {
+            if !is_part {
+                println!("User {:?} is not part of chat {:?}, cannot send message", user_id, chat_id);
+                return;
+            }
+        }
+        Err(err_str) => {
+            println!("Error checking if user {:?} is part of chat {:?}: {:?}", user_id, chat_id, err_str);
+            return;
+        }
+    }
+    // if user is part of chat, we can create the message
+    let new_message = crate::repository::args::CreateMessage {
+        chat_id,
+        sender_id: user_id,
+        content,
+    };
+
+    crate::repository::messages::create_message(new_message);
+}

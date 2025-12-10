@@ -1,6 +1,7 @@
 use crate::schema::chats;
 use super::db::establish_connection;
 use diesel::{ connection, prelude::* };
+use serde::{ Deserialize, Serialize };
 use super::args::{ CreatePrivateChat, CreateGroupChat };
 
 /**
@@ -26,8 +27,8 @@ pub struct Chat {
     pub chat_type: String,
     pub user_id_1: Option<i32>,
     pub user_id_2: Option<i32>,
-    pub created_at: Option<chrono::NaiveDateTime>,
     pub group_name: Option<String>,
+    pub created_at: Option<chrono::NaiveDateTime>,
 }
 
 /**
@@ -35,7 +36,7 @@ pub struct Chat {
  * # Arguments
  * `chat` - A CreatePrivateChat struct containing the chat details.
  */
-pub fn create_private_chat(chat: CreatePrivateChat) {
+pub fn create_private_chat(chat: CreatePrivateChat) -> Result<(), String> {
     println!(
         "Creating new private chat between users: {:?} and {:?}",
         chat.user_id_1,
@@ -54,11 +55,12 @@ pub fn create_private_chat(chat: CreatePrivateChat) {
         group_name: None,
     };
 
-    diesel
-        ::insert_into(chats)
-        .values(&new_chat)
-        .execute(connection)
-        .expect("Error saving new private chat");
+    let inserted = diesel::insert_into(chats).values(&new_chat).execute(connection).unwrap_or(0);
+    if inserted == 1 {
+        Ok(())
+    } else {
+        Err("Failed to create private chat".to_string())
+    }
 }
 
 /**
@@ -66,7 +68,7 @@ pub fn create_private_chat(chat: CreatePrivateChat) {
  * # Arguments
  * `chat` - A CreateGroupChat struct containing the chat details.
  */
-pub fn create_group_chat(chat: CreateGroupChat) {
+pub fn create_group_chat(chat: CreateGroupChat) -> Result<(), String> {
     println!(
         "Creating new group chat named `{:?}` by creator user: {:?}",
         chat.group_name,
@@ -85,9 +87,155 @@ pub fn create_group_chat(chat: CreateGroupChat) {
         group_name: Some(&chat.group_name),
     };
 
-    diesel
-        ::insert_into(chats)
-        .values(&new_chat)
-        .execute(connection)
-        .expect("Error saving new group chat");
+    let res = diesel::insert_into(chats).values(&new_chat).execute(connection).unwrap_or(0);
+    if res == 1 {
+        Ok(())
+    } else {
+        Err("Failed to create group chat".to_string())
+    }
+}
+
+pub fn get_chats_for_user(user_id: i32) -> Vec<Chat> {
+    println!("Retrieving chats for user ID {:?}", user_id);
+
+    use crate::schema::chats::dsl::*;
+
+    let connection = &mut establish_connection();
+
+    let results = chats
+        .filter(
+            chat_type
+                .eq("PRIVATE")
+                .and(user_id_1.eq(user_id).or(user_id_2.eq(user_id)))
+                .or(chat_type.eq("GROUP"))
+        )
+        .load::<Chat>(connection)
+        .expect("Error loading chats");
+
+    results
+}
+
+/// function to retrieve the chatType of the chat which id is passed as parameter
+/// # Arguments
+/// `chat_id` : the id of the chat we want to retrieve the type for
+/// # Returns
+/// A String representing the chat type ("PRIVATE" or "GROUP")
+pub fn get_chat_type(chat_id: i32) -> Result<String, String> {
+    use crate::schema::chats::dsl::*;
+    let mut connection = establish_connection();
+
+    match
+        chats
+            .filter(id.eq(chat_id as i32))
+            .first::<Chat>(&mut connection)
+            .optional()
+    {
+        Ok(Some(chat)) => Ok(chat.chat_type),
+        Ok(None) => Err(format!("Chat with id {} not found", chat_id)),
+        Err(e) => Err(format!("Database error: {}", e)),
+    }
+}
+
+/// function to check if a user is part of a private chat
+/// # Arguments
+/// `user_id` : the id of the user we want to check
+/// `chat_id` : the id of the private chat we want to check
+/// # Returns
+/// A Result<bool, String> which is Ok(true) if the user is part of the private chat,
+/// Ok(false) if the user is not part of the private chat,
+/// Err(String) if there was an error (e.g. chat is not private)
+pub fn is_user_part_of_private_chat(user_id: i32, chat_id: i32) -> Result<bool, String> {
+    // we check if chat is actually a private chat, if it's not then we return a String
+    // "NOT_PRIVATE_CHAT_ERROR"
+    let chat_type_ = get_chat_type(chat_id);
+    let chat_type_ = match chat_type_ {
+        Ok(ct) => ct,
+        Err(e) => {
+            return Err(e);
+        }
+    };
+    if chat_type_ != "PRIVATE" {
+        return Err("NOT_PRIVATE_CHAT_ERROR".to_string());
+    }
+    // if it's actually a private chat, we check user_id_* and if one of them == to user_id param then true, else false
+    use crate::schema::chats::dsl::*;
+    let connection = &mut establish_connection();
+    let chat = chats
+        .filter(id.eq(chat_id as i32))
+        .first::<Chat>(connection)
+        .expect("Error loading chat");
+    if chat.user_id_1 == Some(user_id as i32) || chat.user_id_2 == Some(user_id as i32) {
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
+/// function to check if a user is part of a group chat
+/// # Arguments
+/// `user_id_` : the id of the user we want to check
+/// `chat_id_` : the id of the group chat we want to check
+/// # Returns
+/// A Result<bool, String> which is Ok(true) if the user is part of the group chat,
+/// Ok(false) if the user is not part of the group chat,
+/// Err(String) if there was an error (e.g. chat is not group)
+pub fn is_user_part_of_group_chat(user_id_: i32, chat_id_: i32) -> Result<bool, String> {
+    // we check if chat is actually a group chat, if it's not then we return a String
+    // "NOT_GROUP_CHAT_ERROR"
+    let chat_type_ = get_chat_type(chat_id_);
+    let chat_type_ = match chat_type_ {
+        Ok(ct) => ct,
+        Err(e) => {
+            return Err(e);
+        }
+    };
+    if chat_type_ != "GROUP" {
+        return Err("NOT_GROUP_CHAT_ERROR".to_string());
+    }
+    // if it's actually a group chat, we check in chat_components table if user is part of that chat
+    use crate::schema::chat_components::dsl::*;
+    let connection = &mut establish_connection();
+    let result = chat_components
+        .filter(chat_id.eq(chat_id_ as i32).and(user_id.eq(user_id_ as i32)))
+        .first::<super::chat_components::ChatComponent>(connection)
+        .optional()
+        .expect("Error loading chat component");
+    match result {
+        Some(_) => Ok(true),
+        None => Ok(false),
+    }
+}
+
+/// Function to check if a private chat between two users already exists
+/// # Arguments
+/// `user_id_1` - The ID of the first user.
+/// `user_id_2` - The ID of the second user.
+/// # Returns
+/// A Result<bool, String> which is Ok(true) if the private chat exists,
+/// Ok(false) if the private chat does not exist,
+/// Err(String) if there was an error.
+pub fn does_private_chat_between_users_exist(
+    user_id_1: i32,
+    user_id_2: i32
+) -> Result<bool, String> {
+    use crate::schema::chats::dsl::*;
+    let mut connection = establish_connection();
+
+    match
+        chats
+            .filter(
+                chat_type.eq("PRIVATE").and(
+                    user_id_1
+                        .eq(user_id_1)
+                        .and(user_id_2.eq(user_id_2))
+                        .or(user_id_1.eq(user_id_2).and(user_id_2.eq(user_id_1)))
+                )
+            )
+            .first::<Chat>(&mut connection)
+            .optional()
+    {
+        Ok(Some(_)) => Ok(true),
+        Ok(None) => Ok(false),
+        Err(e) => Err(format!("Database error: {}", e)),
+    }
 }

@@ -77,3 +77,4 @@ pub fn get_messages_by_chat_id(target_chat_id: i32) -> Vec<Message> {
         .expect("Error loading messages");
     results
 }
+

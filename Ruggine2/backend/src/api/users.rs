@@ -54,7 +54,7 @@ impl ResponseError for UserError {
 }
 
 /// Response structure for successful login
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct LoginResponse {
     pub token: String,
     pub user_id: i32,
@@ -62,7 +62,7 @@ pub struct LoginResponse {
 }
 
 /// Response structure for successful registration
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RegisterResponse {
     pub user_id: i32,
     pub username: String,
