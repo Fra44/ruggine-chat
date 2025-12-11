@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
         env_logger::init();
     }
 
-    monitor_cpu::start_logging();
+    // monitor_cpu::start_logging();
 
     HttpServer::new(move || {
         let logger = Logger::default();
@@ -37,10 +37,11 @@ async fn main() -> Result<()> {
             .service(
                 web::scope("/api/chats")
                     .wrap(auth_middleware.clone())
-                    .service(api::chats::get_chats)
-                    .service(api::messages::get_chat_messages)
-                    .service(api::messages::post_chat_message)
-                    // .service(api::chats::get_chats) // => to add methods later
+                    .service(api::chats::get_chats) // in api.ts
+                    .service(api::chats::new_private_chat)  // in api.ts
+                    .service(api::chats::new_group_chat) // in api.ts
+                    .service(api::messages::get_chat_messages)  // in api.ts
+                    .service(api::messages::post_chat_message) // in api.ts
             )
             .service(
                 web::scope("/api/messages")
@@ -50,6 +51,10 @@ async fn main() -> Result<()> {
             .service(
                 web::scope("/api/invites")
                     .wrap(auth_middleware.clone())
+                    .service(api::invites::invite_user) // in api.ts
+                    .service(api::invites::get_user_invites) // in api.ts
+                    .service(api::invites::accept_invite) // in api.ts
+                    .service(api::invites::reject_invite) //
                     // .service(api::invites::get_invites) // => to add methods later
             )
     })

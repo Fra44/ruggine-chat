@@ -32,7 +32,7 @@ pub struct Message {
  * # Arguments
  * `message` - A CreateMessage struct containing the message details.
  */
-pub fn create_message(message: CreateMessage) {
+pub fn create_message(message: CreateMessage) -> Result<(), String> {
     println!(
         "Creating new message in chat {:?} from sender {:?}: {:?}",
         message.chat_id,
@@ -50,11 +50,16 @@ pub fn create_message(message: CreateMessage) {
         content: &message.content,
     };
 
-    diesel
+    let insert_res = diesel
         ::insert_into(messages)
         .values(&new_message)
         .execute(connection)
         .expect("Error saving new message");
+    if insert_res == 1 {
+        Ok(())
+    } else {
+        Err("FAILED_SENDING_MESSAGE".to_string())
+    }
 }
 
 /**

@@ -1,4 +1,3 @@
-
 /** This file contains the utilities to "use" a Chat object WITHOUT directly interacting with the one
  * extracted/inserted from/to the DB  */
 
@@ -56,19 +55,17 @@ pub fn map_message_to_dto(message: crate::repository::messages::Message) -> Mess
 /// `user_id` - The ID of the user sending the message.
 /// `chat_id` - The ID of the group chat where the message is being sent.
 /// `content` - The content of the message being sent.
-pub fn send_message(user_id: i32, chat_id: i32, content: String) {
+pub fn send_message(user_id: i32, chat_id: i32, content: String) -> Result<(), String> {
     // first we need to check if user_id is part of chat_id
     let is_part_res = is_user_part_of_chat(user_id, chat_id);
     match is_part_res {
         Ok(is_part) => {
             if !is_part {
-                println!("User {:?} is not part of chat {:?}, cannot send message", user_id, chat_id);
-                return;
+                return Err("USER_NOT_AUTHORIZED".to_string());
             }
         }
         Err(err_str) => {
-            println!("Error checking if user {:?} is part of chat {:?}: {:?}", user_id, chat_id, err_str);
-            return;
+            return Err(err_str);
         }
     }
     // if user is part of chat, we can create the message
@@ -78,5 +75,16 @@ pub fn send_message(user_id: i32, chat_id: i32, content: String) {
         content,
     };
 
-    crate::repository::messages::create_message(new_message);
+    let create_res = crate::repository::messages::create_message(new_message);
+    match create_res {
+        Ok(_) => {
+            crate::repository::chats::update_chat_last_message_at(
+                chat_id,
+                chrono::Utc::now().naive_utc()
+            )
+        }
+        Err(err_str) => {
+            return Err(err_str);
+        }
+    }
 }

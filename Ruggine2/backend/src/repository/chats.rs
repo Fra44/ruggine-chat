@@ -29,6 +29,7 @@ pub struct Chat {
     pub user_id_2: Option<i32>,
     pub group_name: Option<String>,
     pub created_at: Option<chrono::NaiveDateTime>,
+    pub last_message_at: Option<chrono::NaiveDateTime>,
 }
 
 /**
@@ -36,7 +37,7 @@ pub struct Chat {
  * # Arguments
  * `chat` - A CreatePrivateChat struct containing the chat details.
  */
-pub fn create_private_chat(chat: CreatePrivateChat) -> Result<(), String> {
+pub fn create_private_chat(chat: CreatePrivateChat) -> Result<i32, String> {
     println!(
         "Creating new private chat between users: {:?} and {:?}",
         chat.user_id_1,
@@ -45,30 +46,37 @@ pub fn create_private_chat(chat: CreatePrivateChat) -> Result<(), String> {
 
     use crate::schema::chats::dsl::*;
 
+    // we return the id of the newly created chat
     let connection = &mut establish_connection();
 
     let new_chat = NewChat {
         chat_type: &chat.chat_type,
-        user_id_1: chat.user_id_1,
-        user_id_2: chat.user_id_2,
+        user_id_1: Some(chat.user_id_1.unwrap()),
+        user_id_2: Some(chat.user_id_2.unwrap()),
         created_at: None,
         group_name: None,
     };
-
-    let inserted = diesel::insert_into(chats).values(&new_chat).execute(connection).unwrap_or(0);
-    if inserted == 1 {
-        Ok(())
+    let res = diesel::insert_into(chats).values(&new_chat).execute(connection).unwrap_or(0);
+    if res == 1 {
+        // we retrieve the id of the newly created chat
+        let created_chat = chats
+            .order(id.desc())
+            .first::<Chat>(connection)
+            .expect("Error loading chat");
+        Ok(created_chat.id)
     } else {
         Err("Failed to create private chat".to_string())
     }
 }
 
-/**
- * Repository level function that creates a new group chat into the database.
- * # Arguments
- * `chat` - A CreateGroupChat struct containing the chat details.
- */
-pub fn create_group_chat(chat: CreateGroupChat) -> Result<(), String> {
+/// Repository level function that creates a new group chat into the database.
+/// # Arguments
+///`chat` - A CreateGroupChat struct containing the chat details.
+/// # Returns
+/// A Result<i32, String> which is Ok(val: i32) if the chat was created successfully,
+/// where val is the id of the newly created chat,
+/// Err(String) if there was an error.
+pub fn create_group_chat(chat: CreateGroupChat) -> Result<i32, String> {
     println!(
         "Creating new group chat named `{:?}` by creator user: {:?}",
         chat.group_name,
@@ -89,29 +97,51 @@ pub fn create_group_chat(chat: CreateGroupChat) -> Result<(), String> {
 
     let res = diesel::insert_into(chats).values(&new_chat).execute(connection).unwrap_or(0);
     if res == 1 {
-        Ok(())
+        let created_chat = chats
+            .order(id.desc())
+            .first::<Chat>(connection)
+            .expect("RETRIEVING_NEWLY_CREATED_GROUP_CHAT_ERROR");
+        Ok(created_chat.id)
     } else {
-        Err("Failed to create group chat".to_string())
+        Err("GROUP_CREATION_FAILED".to_string())
     }
 }
 
-pub fn get_chats_for_user(user_id: i32) -> Vec<Chat> {
-    println!("Retrieving chats for user ID {:?}", user_id);
+/// Repository level function that retrieves all chats for a given user ID from the database.
+/// # Arguments
+/// `user_id` - An integer representing the user ID whose chats are to be retrieved.
+/// # Returns
+/// A vector of Chat structs representing the chats of the specified user.
+pub fn get_private_chats_for_user(user_id: i32) -> Vec<Chat> {
+    println!("Retrieving private chats for user ID {:?}", user_id);
 
     use crate::schema::chats::dsl::*;
 
     let connection = &mut establish_connection();
 
     let results = chats
-        .filter(
-            chat_type
-                .eq("PRIVATE")
-                .and(user_id_1.eq(user_id).or(user_id_2.eq(user_id)))
-                .or(chat_type.eq("GROUP"))
-        )
+        .filter(chat_type.eq("PRIVATE").and(user_id_1.eq(user_id).or(user_id_2.eq(user_id))))
         .load::<Chat>(connection)
         .expect("Error loading chats");
 
+    results
+}
+
+pub fn get_group_chats_for_user(user_id_: i32) -> Vec<Chat> {
+    println!("Retrieving group chats for user ID {:?}", user_id_);
+
+    use crate::schema::chats::dsl::*;
+    use crate::schema::chat_components::dsl as cc_dsl;
+
+    let connection = &mut establish_connection();
+
+    let results = chats
+        .inner_join(cc_dsl::chat_components.on(cc_dsl::chat_id.eq(id)))
+        .filter(chat_type.eq("GROUP").and(cc_dsl::user_id.eq(user_id_)))
+        .select(chats::all_columns())
+        .load::<Chat>(connection)
+        .expect("Error loading group chats");
+    println!("Found group chats: {:?}", results);
     results
 }
 
@@ -215,8 +245,8 @@ pub fn is_user_part_of_group_chat(user_id_: i32, chat_id_: i32) -> Result<bool, 
 /// Ok(false) if the private chat does not exist,
 /// Err(String) if there was an error.
 pub fn does_private_chat_between_users_exist(
-    user_id_1: i32,
-    user_id_2: i32
+    user_id_1_: i32,
+    user_id_2_: i32
 ) -> Result<bool, String> {
     use crate::schema::chats::dsl::*;
     let mut connection = establish_connection();
@@ -226,9 +256,9 @@ pub fn does_private_chat_between_users_exist(
             .filter(
                 chat_type.eq("PRIVATE").and(
                     user_id_1
-                        .eq(user_id_1)
-                        .and(user_id_2.eq(user_id_2))
-                        .or(user_id_1.eq(user_id_2).and(user_id_2.eq(user_id_1)))
+                        .eq(user_id_1_)
+                        .and(user_id_2.eq(user_id_2_))
+                        .or(user_id_1.eq(user_id_2_).and(user_id_2.eq(user_id_1_)))
                 )
             )
             .first::<Chat>(&mut connection)
@@ -237,5 +267,34 @@ pub fn does_private_chat_between_users_exist(
         Ok(Some(_)) => Ok(true),
         Ok(None) => Ok(false),
         Err(e) => Err(format!("Database error: {}", e)),
+    }
+}
+
+/// Function at repository level to update the last_message_at field of a chat
+/// # Arguments
+/// `chat_id_` : the id of the chat to update
+/// `timestamp` : the new timestamp to set
+/// # Returns
+/// A Result<(), String> which is Ok(()) if the update was successful,
+/// Err(String) if there was an error (e.g. chat not found)
+pub fn update_chat_last_message_at(
+    chat_id_: i32,
+    timestamp: chrono::NaiveDateTime
+) -> Result<(), String> {
+    use crate::schema::chats::dsl::*;
+    let mut connection = establish_connection();
+
+    let target = chats.filter(id.eq(chat_id_ as i32));
+
+    let updated_rows = diesel
+        ::update(target)
+        .set(last_message_at.eq(timestamp))
+        .execute(&mut connection)
+        .map_err(|e| format!("Error updating last_message_at: {}", e))?;
+
+    if updated_rows == 1 {
+        Ok(())
+    } else {
+        Err("No chat found with the given ID".to_string())
     }
 }

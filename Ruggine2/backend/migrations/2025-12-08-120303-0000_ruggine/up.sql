@@ -15,6 +15,7 @@ CREATE TABLE
         user_id_2 INT REFERENCES users (id) ON DELETE CASCADE,
         group_name VARCHAR(30),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT chats_type_users_chk CHECK (
             (
                 chat_type = 'GROUP'
@@ -44,7 +45,7 @@ CREATE TABLE
     chat_components (
         chat_id INT REFERENCES chats (id) ON DELETE CASCADE,
         user_id INT REFERENCES users (id) ON DELETE CASCADE,
-        role VARCHAR(5) NOT NULL CHECK (role IN ('ADMIN', 'GUEST')),
+        role VARCHAR(6) NOT NULL CHECK (role IN ('ADMIN', 'MEMBER')),
         PRIMARY KEY (chat_id, user_id)
     );
 
@@ -69,5 +70,5 @@ CREATE TABLE
         sender_id INT REFERENCES users (id) ON DELETE SET NULL,
         receiver_id INT REFERENCES users (id) ON DELETE CASCADE,
         sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        accepted BOOLEAN DEFAULT FALSE
+        accepted BOOLEAN DEFAULT NULL
     );
