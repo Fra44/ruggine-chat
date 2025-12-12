@@ -96,6 +96,22 @@ export const registerUser = async (
     return res.json();
 };
 
+export const getUsernameFromUserId = async (user_id: number): Promise<string> => {
+    const res = await fetch(`${BASE_URL}/users/${user_id}`, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${getToken()}`
+        },
+    });
+
+    if (!res.ok) {
+        throw await toApiError(res);
+    }
+    const data = await res.json();
+    return data.username;
+}
+
 // for the requests that require authentication, we will need to add the Authorization header with the token by using
 // the getToken() utility function defined above IN the headers :
 /*
@@ -118,6 +134,8 @@ export interface ChatDAO {
     user_id_2: number | null;
     group_name: string | null;
     last_message_at: string | null;
+    username_1: string | null;
+    username_2: string | null;
 }
 
 export interface MessageDAO {
@@ -147,6 +165,8 @@ function convertToChatDAO(dto: any): ChatDAO | null {
         user_id_2: dto.user_id_2,
         group_name: dto.group_name,
         last_message_at: dto.last_message_at, // Viene conservato come string | null
+        username_1: dto.username_1,
+        username_2: dto.username_2,
     } as ChatDAO;
 }
 
@@ -479,3 +499,4 @@ export const rejectInvite = async (invite_id: number): Promise<void> => {
         throw error;
     }
 }
+

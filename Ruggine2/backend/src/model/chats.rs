@@ -17,10 +17,23 @@ pub struct ChatDTO {
     pub user_id_2: Option<i32>,
     pub group_name: Option<String>,
     pub last_message_at: Option<String>,
+    // new addition : 
+    pub username_1: Option<String>,
+    pub username_2: Option<String>,
 }
 
 impl From<crate::repository::chats::Chat> for ChatDTO {
     fn from(chat: crate::repository::chats::Chat) -> Self {
+        let mut un1: Option<String> = None;
+        let mut un2: Option<String> = None;
+        match chat.user_id_1 {
+            Some(uid1) => { un1 = Some(crate::model::users::get_username_for_user_id(uid1).unwrap_or("UNKNOWN_USER".to_string())); },
+            None => {}
+        }
+        match chat.user_id_2 {
+            Some(uid2) => { un2 = Some(crate::model::users::get_username_for_user_id(uid2).unwrap_or("UNKNOWN_USER".to_string())); },
+            None => {}
+        }
         ChatDTO {
             id: chat.id,
             chat_type: chat.chat_type,
@@ -30,6 +43,8 @@ impl From<crate::repository::chats::Chat> for ChatDTO {
             last_message_at: chat.last_message_at
                 .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
                 .or(None),
+            username_1: un1,
+            username_2: un2,
         }
     }
 }
