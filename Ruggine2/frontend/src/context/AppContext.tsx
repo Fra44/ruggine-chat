@@ -45,7 +45,7 @@ const useWebSocket = (handleWsMessage: (msg: ServerWsMessage<any>) => void) => {
 
     useEffect(() => {
         const token = localStorage.getItem('token');
-        if (!token) return; 
+        if (!token) return;
         // URL of the WebSocket "endpoint"
         const WS_URL = `ws://localhost:8080/ws/?token=${token}`;
 
@@ -209,8 +209,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 // In mancanza di un endpoint /me, forziamo il logout se il token è solo
                 // una stringa vuota, altrimenti reindirizziamo.
                 navigate('/homepage');
-            } else {
-                navigate('/login');
             }
         };
         checkAuth();

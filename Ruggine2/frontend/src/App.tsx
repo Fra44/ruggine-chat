@@ -40,7 +40,6 @@ function App() {
         }}
       />
       <Routes>
-        <Route path="/" />
         {/* Usiamo HomePage senza props, prenderà lo stato dal Context */}
         <Route path="/homepage" element={pera.user ? <HomePage /> : <LoginPage/>} />
         {/* Usiamo LoginPage senza props, prenderà le azioni dal Context */}

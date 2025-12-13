@@ -25,8 +25,12 @@ pub struct Invite {
  * Repository level function that creates a new invite into the database.
  * # Arguments
  * `invite` - A CreateInvite struct containing the invite details.
+ * # Returns
+ * A Result<i32, String> which is Ok(val: i32) if the invite was created successfully,
+ * where val is the ID of the newly created invite,
+ * Err(String) if there was an error.
  */
-pub fn create_invite(invite: CreateInvite) -> Result<(), String> {
+pub fn create_invite(invite: CreateInvite) -> Result<i32, String> {
     println!(
         "Creating new invite from user {:?} to user {:?} for chat {:?}",
         invite.sender_id,
@@ -51,7 +55,13 @@ pub fn create_invite(invite: CreateInvite) -> Result<(), String> {
         .expect("Error saving new invite");
 
     if res == 1 {
-        Ok(())
+        // Retrieve the ID of the newly created invite
+        let created_invite_id = invites
+            .order(id.desc())
+            .select(id)
+            .first::<i32>(connection)
+            .expect("Error loading created invite ID");
+        Ok(created_invite_id)
     } else {
         Err("Failed to create invite".to_string())
     }

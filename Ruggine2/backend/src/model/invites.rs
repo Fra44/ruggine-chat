@@ -145,7 +145,7 @@ pub fn get_user_invites(user_id: i32) -> Result<Vec<InviteDTO>, String> {
     }
 }
 
-pub fn create_invite_for_user(user_id_sender: i32, user_id_receiver: i32, chat_id_: i32) -> Result<(), String> {
+pub fn create_invite_for_user(user_id_sender: i32, user_id_receiver: i32, chat_id_: i32) -> Result<i32, String> {
     // we check that user exists
     let user_exists = crate::repository::users::find_user_by_id(user_id_sender);
     if user_exists.is_none() {

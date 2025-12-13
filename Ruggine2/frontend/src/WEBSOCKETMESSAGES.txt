@@ -1,0 +1,17 @@
+- Notifica di un NUOVO INVITO per l'utente:
+
+{
+    "type":"NEW_INVITE",
+    "payload": {
+        "accepted":null,    // sarà sempre null perché l'utente deve ancora accept(TRUE)/reject(FALSE)
+        "chat_id":4,        // number
+        "id":2,             // number
+        "receiver_id":1,    // number    
+        "sender_id":2,      // number
+        "sent_at":"2025-12-13T12:07:01.195590200+00:00" // String che indica il tempo (rfc3339)
+    }    
+}
+
+
+- Notifica di un NUOVO MESSAGGIO per l'utente :
+

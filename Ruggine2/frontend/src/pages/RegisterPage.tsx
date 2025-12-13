@@ -6,11 +6,14 @@ import { toast } from "react-hot-toast";
 
 import { registerUser, type RegisterUserPayload } from "../api/api";
 import "../styles/auth.css";
+import { useAppContext } from "../context/AppContext";
 
-export default function RegisterPage({user, setUser}) {
+export default function RegisterPage() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+
+    const { user } = useAppContext();
 
     const isFormValid = username.trim() !== "" && password.trim() !== "";
 
