@@ -1,18 +1,24 @@
-import { Routes, Route, } from "react-router-dom";
+import { Routes, Route, useNavigate, } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
 
 import './App.css'
 import RegisterPage from "./pages/RegisterPage";
-import type { User } from "./models/models";
+// import type { User } from "./models/models"; // Non serve più qui
 import LoginPage from "./pages/LoginPage";
-import { useState } from "react";
+// import { useState } from "react"; // Non serve più qui
 import HomePage from "./pages/HomePage";
+import { useAppContext } from "./context/AppContext";
+// Importiamo l'hook per l'utente, anche se qui non lo usiamo direttamente
+// ma AppProvider si occupa del routing iniziale.
+// import { useAppContext } from "./context/AppContext"; 
 
 function App() {
 
-  const [user, setUser] = useState<User | null>(null);
+  // Rimosso: const [user, setUser] = useState<User | null>(null);
 
+  const pera = useAppContext();
+  const navigate = useNavigate();
   return (
     <>
       <Toaster
@@ -35,12 +41,14 @@ function App() {
       />
       <Routes>
         <Route path="/" />
-        <Route path="/homepage" element={ <HomePage user = {user}/>}/>
-        <Route path="/login" element={<LoginPage user={user} setUser={setUser} />} />
-        <Route path="/register" element={<RegisterPage user={user} setUser={setUser} />} />
+        {/* Usiamo HomePage senza props, prenderà lo stato dal Context */}
+        <Route path="/homepage" element={pera.user ? <HomePage /> : <LoginPage/>} />
+        {/* Usiamo LoginPage senza props, prenderà le azioni dal Context */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
       </Routes>
     </>
-  )
+  );
 }
 
 export default App

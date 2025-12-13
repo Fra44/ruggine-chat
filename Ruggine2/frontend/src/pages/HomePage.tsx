@@ -1,90 +1,67 @@
 // pages/HomePage.tsx
 
-import React, { useState, useEffect } from "react";
-import { Container, Row, Col, Spinner } from "react-bootstrap";
-import { getChats, type ChatDAO, type MessageDAO, getChatMessages } from "../api/api";
-import { type User } from "../models/models";
+// Rimosso: import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react"; // Manteniamo React per JSX
+import { Container, Row, Col, Spinner, Button } from "react-bootstrap";
+// Rimosso: import { getChats, type ChatDAO, type MessageDAO, getChatMessages } from "../api/api";
+// Rimosso: import { type User } from "../models/models";
 import ChatList from "../components/ChatList";
 import ChatWindow from "../components/ChatWindow";
-import { toast } from "react-hot-toast";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router"; // Mantenuto solo per navigate
 
-// Definiamo le props che riceverà la HomePage
-interface HomePageProps {
-    user: User | null;
-}
+import { useAppContext } from "../context/AppContext"; // Importiamo il Context
+import type { ChatDAO } from "../api/api";
 
-export default function HomePage({ user }: HomePageProps) {
-    // Stato per l'elenco delle chat
-    const [chats, setChats] = useState<ChatDAO[]>([]);
-    // Stato per la chat selezionata (null se nessuna)
-    const [selectedChat, setSelectedChat] = useState<ChatDAO | null>(null);
-    // Stato per i messaggi della chat selezionata
-    const [messages, setMessages] = useState<MessageDAO[]>([]);
-    const [loadingChats, setLoadingChats] = useState(true);
-    const [loadingMessages, setLoadingMessages] = useState(false);
+// Rimosso: interface HomePageProps { user: User | null; }
+
+// Modificato: non riceve più props
+export default function HomePage() {
+    const {
+        user,
+        chats,
+        selectedChat,
+        messages,
+        loadingChats,
+        loadingMessages,
+        setSelectedChat, // Funzione per selezionare la chat
+        logout, // Funzione di logout
+        // sendMessage, // Se volessi implementare la logica qui
+    } = useAppContext(); // Otteniamo tutti gli stati e le azioni dal Context
 
     const navigate = useNavigate();
 
-    // 1. Caricamento Iniziale delle Chat
     useEffect(() => {
-        const fetchChats = async () => {
-            if (!user) return;
-            try {
-                const fetchedChats = await getChats();
-                
-                setChats(fetchedChats);
-            } catch (error) {
-                console.error("Error fetching chats:", error);
-                toast.error("Failed to load chats.");
-            } finally {
-                setLoadingChats(false);
-            }
-        };
-        fetchChats();
-    }, [user]);
+        if (!user) {
+            // Questa condizione può essere rimossa se la logica di reindirizzamento
+            // è centralizzata nel Provider, ma è un buon fallback.
+            navigate("/login");
+        }
+    }, []);
+    // Reindirizzamento se l'utente non è loggato (logica gestita meglio nel provider)
 
-    // 2. Caricamento dei Messaggi quando la chat cambia
-    useEffect(() => {
-        const fetchMessages = async () => {
-            if (selectedChat) {
-                setLoadingMessages(true);
-                try {
-                    const fetchedMessages = await getChatMessages(selectedChat.id);
-                    setMessages(fetchedMessages);
-                    // Scorri in fondo al caricamento, gestito nel ChatWindow
-                } catch (error) {
-                    console.error("Error fetching messages:", error);
-                    toast.error("Failed to load messages.");
-                    setMessages([]); // Svuota i messaggi in caso di errore
-                } finally {
-                    setLoadingMessages(false);
-                }
-            } else {
-                setMessages([]);
-            }
-        };
-        fetchMessages();
-    }, [selectedChat]);
 
-    // Funzione per selezionare una chat dalla lista
+    // Le logiche di caricamento iniziale e WS sono ora nel Context.
+    // L'UI è molto più pulita.
+
     const handleSelectChat = (chat: ChatDAO) => {
         setSelectedChat(chat);
     };
 
-    if (!user) { navigate("/login") }; // Non dovrebbe succedere grazie a ProtectedRoute
-
     return (
         <Container fluid className="homepage-container">
             <Row className="h-100">
-
                 {/* ------------------------------------- */}
-                {/* COLONNA SINISTRA: CHAT LIST (1/4 o 1/3) */}
+                {/* COLONNA SINISTRA: CHAT LIST (3/12 o 4/12) */}
                 {/* ------------------------------------- */}
                 <Col xs={12} sm={4} lg={3} className="chatlist-sidebar">
-                    <h4 className="mt-3 mb-4 auth-title" style={{ fontSize: '1.5rem', textAlign: 'center' }}>
-                        Chats
-                    </h4>
+                    <div className="d-flex justify-content-between align-items-center mt-3 mb-4">
+                        <h4 className="auth-title" style={{ fontSize: '1.5rem', textAlign: 'center' }}>
+                            Chats - {user.username}
+                        </h4>
+                        <Button variant="outline-danger" size="sm" onClick={logout}>
+                            Logout
+                        </Button>
+                    </div>
                     {loadingChats ? (
                         <div className="text-center mt-5">
                             <Spinner animation="border" variant="light" />
@@ -94,7 +71,7 @@ export default function HomePage({ user }: HomePageProps) {
                             chats={chats}
                             selectedChatId={selectedChat?.id}
                             onSelectChat={handleSelectChat}
-                            user = {user!}
+                            user={user} // Passiamo l'utente dal Context
                         />
                     )}
                 </Col>
@@ -107,8 +84,8 @@ export default function HomePage({ user }: HomePageProps) {
                         chat={selectedChat}
                         messages={messages}
                         loading={loadingMessages}
-                        currentUser={user!}
-                    // Qui andrebbe passata una funzione per inviare messaggi
+                        currentUser={user}
+                    // L'invio del messaggio sarà gestito da ChatWindow usando il Context
                     />
                 </Col>
 

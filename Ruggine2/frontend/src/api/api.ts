@@ -143,6 +143,7 @@ export interface MessageDAO {
     sender_id: number;
     content: string;
     sent_at: string;
+    chat_id: number;
 }
 
 
@@ -198,6 +199,7 @@ function convertToMessageDAO(dto: any): MessageDAO | null {
         sender_id: dto.sender_id,
         content: dto.content,
         sent_at: dto.sent_at,
+        chat_id: dto.chat_id,
     } as MessageDAO;
 }
 
@@ -503,5 +505,18 @@ export const rejectInvite = async (invite_id: number): Promise<void> => {
 
 // REAL-TIME COMMUNICATION (WEBSOCKET upgrade request) :
 
-export const getWebSocket
+export type WsEventType = 'NEW_MESSAGE' | 'USER_JOINED' | 'USER_LEFT' | 'USER_TYPING' | 'NEW_CHAT' | 'NEW_INVITE';
+
+/**
+ * Generic interface representing a WebSocket message from the server.
+ * # Type Parameters
+ * - T: The type of the payload contained in the message.
+ * # Properties
+ * - type: WsEventType - The type of the WebSocket event.
+ * - payload: T - The payload associated with the event.
+ */
+export interface ServerWsMessage<T> {
+    type: WsEventType;
+    payload: T; 
+}
 

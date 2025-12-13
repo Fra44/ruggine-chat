@@ -74,6 +74,24 @@ async fn main() -> Result<()> {
     }
 
     let chat_server = Arc::new(Mutex::new(ChatServer::new()));
+    let to_use = chat_server.clone();
+    // creiamo un thread, che dopo 1 minuto dall'avvio del server, tramite il websocket dell'utente 1,
+    // invia un messaggio di tipo NEW_MESSAGE importando da web_socket il ServerWsMessage e WsEventType:
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(60));
+        let my_type = web_socket::WsEventType::NewMessage;
+        let msg = web_socket::ServerWsMessage {
+            event_type: my_type,
+            payload: serde_json::json!({
+                "chat_id": 1,
+                "message_id": 999,
+                "sender_id": 1,
+                "content": "This is a test message sent after 1 minute from server start.".to_string(),
+                "sent_at": chrono::Utc::now().to_rfc3339(),
+            }),
+        };
+        to_use.lock().unwrap().send_to_users(&[1], &serde_json::to_string(&msg).unwrap());
+    });
 
     HttpServer::new(move || {
         let logger = Logger::default();
@@ -92,9 +110,9 @@ async fn main() -> Result<()> {
             .service(
                 web
                     ::scope("/api/users")
-                    .service(api::users::register_user) // in api.ts    
-                    .service(api::users::login_user)    // in api.ts
-                    .service(api::users::get_username_from_id)  // NOT NEEDED ANYMORE
+                    .service(api::users::register_user) // in api.ts
+                    .service(api::users::login_user) // in api.ts
+                // .service(api::users::get_username_from_id)  // NOT NEEDED ANYMORE
             )
             // Protected routes (auth required)
             .service(
@@ -120,10 +138,7 @@ async fn main() -> Result<()> {
                     .service(api::invites::accept_invite) // in api.ts
                     .service(api::invites::reject_invite) // in api.ts
             )
-            .service(
-                web::scope("/ws")
-                .route("/", web::get().to(ws_route))
-            )
+            .service(web::scope("/ws").route("/", web::get().to(ws_route)))
     })
         .bind(("127.0.0.1", 8080))?
         .run().await

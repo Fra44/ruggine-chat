@@ -10,7 +10,7 @@ use crate::model::chats::is_user_part_of_chat;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MessageDTO {
     pub id: i32,
-    // pub chat_id: i32,    // --> useless because the messages are retrieved for a specific chat already
+    pub chat_id: i32,
     pub sender_id: i32,
     pub content: String,
     pub sent_at: String,
@@ -20,7 +20,7 @@ impl From<crate::repository::messages::Message> for MessageDTO {
     fn from(message: crate::repository::messages::Message) -> Self {
         MessageDTO {
             id: message.id,
-            // chat_id: message.chat_id,
+            chat_id: message.chat_id,
             sender_id: message.sender_id,
             content: message.content,
             sent_at: message.sent_at

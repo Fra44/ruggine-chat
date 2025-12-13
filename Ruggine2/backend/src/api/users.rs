@@ -121,6 +121,13 @@ pub async fn login_user(body: Json<LoginUser>) -> Result<HttpResponse, UserError
     }
 }
 
+
+/// # `NOT USED ANYMORE`  
+/// API endpoint to get the username for a given user ID.
+/// # Arguments
+/// `user_id` - The ID of the user as a path parameter.
+/// # Returns
+/// An HttpResponse containing the username in JSON format or an appropriate error.
 #[get("/{id}")]
 pub async fn get_username_from_id(user_id: Path<i32>) -> impl Responder {
     let user_id_ = user_id.into_inner();

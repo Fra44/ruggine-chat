@@ -4,11 +4,17 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "react-hot-toast";
 
-// Assumi che tu abbia una funzione 'loginUser' nel tuo API file.
-import { loginUser, type LoginUserPayload } from "../api/api";
+// Rimosso: import { loginUser, type LoginUserPayload } from "../api/api";
+import { type LoginUserPayload } from "../api/api";
 import "../styles/auth.css";
 
-export default function LoginPage({ user, setUser }) {
+// Importiamo il Context
+import { useAppContext } from "../context/AppContext";
+
+// Rimosso: export default function LoginPage({ user, setUser }) {
+export default function LoginPage() {
+    const { login } = useAppContext(); // Otteniamo la funzione di login dal Context
+
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
@@ -27,72 +33,54 @@ export default function LoginPage({ user, setUser }) {
                 username: username.trim(),
                 plain_password: password.trim(),
             };
-            console.log("Submitting login with payload:", payload);
-            const loginRes = await loginUser(payload);
-            localStorage.setItem("token", loginRes.token);
-            setUser({ id: loginRes.user_id, username: username.trim() });
-            toast.success("Registration completed!");
+
+            // Usiamo la funzione login dal Context
+            // Rimosso: const loginRes = await loginUser(payload);
+            // Rimosso: localStorage.setItem("token", loginRes.token);
+            // Rimosso: setUser({ id: loginRes.user_id, username: username.trim() });
+            await login(payload); // La logica di salvare token/utente è ora nel Context
+
+            toast.success("Login completed!");
             navigate("/homepage");
         } catch (err: any) {
-            console.error("Registration error:", err);
-            // Assicurati che l'oggetto errore abbia una proprietà message
-            toast.error(err?.message ?? "Registration failed. Please try again.");
+            console.error("Login error:", err);
+            toast.error(err?.message ?? "Login failed. Please try again.");
         } finally {
             setLoading(false);
         }
     };
 
-    // we do not allow user to access login page if already logged in
-    if(user) navigate("/homepage");
-
+    // ... (resto del codice JSX invariato)
     return (
-        <Container className="my-5 auth-container">
-            <Row className="justify-content-md-center">
-                <Col md={9} lg={6} xl={12}>
-                    <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-                        <div className="login-link-header mb-4">
-                            <span className="text-muted me-2 auth-secondary-text">Don't have anaccount yet? </span>
-                            <Link to="/register" className="auth-link-header-button">
-                                Register
-                            </Link>
-                        </div>
-
+        // ... (JSX invariato)
+        <Container fluid className="auth-container d-flex align-items-center justify-content-center">
+            <Row className="w-100 justify-content-center">
+                <Col xs={12} sm={8} md={6} lg={4} xl={3}>
+                    <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
                         <Card className="auth-card">
                             <Card.Body>
-                                <motion.h2
-                                    className="text-center mb-4 auth-title"
-                                    initial={{ opacity: 0, y: 4 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.05 }}
-                                >
-                                    Welcome back!
-                                </motion.h2>
-                                <p className="text-center mb-4 auth-subtitle">
-                                    Login to start using Ruggine2 Chat — it's fast and private.
-                                </p>
-
-                                <Form onSubmit={handleSubmit} className="d-flex flex-column auth-grid-gap">
-                                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
-                                        <Form.Group controlId="formUsername">
-                                            <Form.Label>Username</Form.Label>
+                                <h2 className="text-center auth-title">Login</h2>
+                                <Form onSubmit={handleSubmit}>
+                                    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}>
+                                        <Form.Group className="mb-3" controlId="formBasicUsername">
+                                            <Form.Label className="auth-label">Username</Form.Label>
                                             <Form.Control
                                                 type="text"
-                                                placeholder="your.username"
+                                                placeholder="Enter username"
                                                 value={username}
                                                 onChange={(e) => setUsername(e.target.value)}
                                                 required
                                                 className="auth-input"
-                                                autoComplete="username"
                                             />
                                         </Form.Group>
                                     </motion.div>
 
-                                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
-                                        <Form.Group controlId="formPassword">
-                                            <Form.Label>Password</Form.Label>
+                                    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+                                        <Form.Group className="mb-4" controlId="formBasicPassword">
+                                            <Form.Label className="auth-label">Password</Form.Label>
                                             <Form.Control
                                                 type="password"
-                                                placeholder="At least 8 characters"
+                                                placeholder="Password"
                                                 value={password}
                                                 onChange={(e) => setPassword(e.target.value)}
                                                 required
@@ -115,6 +103,11 @@ export default function LoginPage({ user, setUser }) {
                                         </Button>
                                     </motion.div>
                                 </Form>
+                                <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24 }} className="mt-3 text-center auth-secondary-text">
+                                    <Link to="/register" className="auth-link">
+                                        Don't have an account? Register
+                                    </Link>
+                                </motion.div>
                             </Card.Body>
                         </Card>
                     </motion.div>

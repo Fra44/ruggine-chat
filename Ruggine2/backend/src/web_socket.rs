@@ -85,10 +85,8 @@ impl actix::Handler<WsMessage> for WsConn {
     type Result = ();
     /// Function to actually handle messages sent to the client
     fn handle(&mut self, msg: WsMessage, ctx: &mut Self::Context) {
-        unimplemented!();
-
-        // Invia il messaggio JSON al client via WebSocket
-        //ctx.text(msg.0);
+        // we send a message for NEW_MESSAGE event
+        ctx.text(msg.0);
     }
 }
 
