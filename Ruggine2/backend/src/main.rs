@@ -4,14 +4,67 @@ mod api;
 mod repository;
 mod auth;
 mod monitor_cpu;
+mod web_socket;
 
+// imports from web_socket module
+use web_socket::{ WsConn, ChatServer };
+
+use std::sync::{ Arc, Mutex };
+use actix_web_actors::ws; // Necessario per l'handler WS
 use actix_cors::Cors;
-use actix_web::{ App, HttpServer, web, middleware::Logger, http::header };
+use actix_web::{
+    App,
+    HttpServer,
+    web,
+    middleware::Logger,
+    http::header,
+    HttpRequest,
+    Result as ActixResult,
+};
 use std::io::Result;
 
-/**
- * main function, it starts the backend server
- */
+/// Application state shared across handlers
+pub struct AppState {
+    pub chat_server: Arc<Mutex<ChatServer>>,
+    // ... if others "global data" nedd to be added, do it HERE
+}
+
+/// WebSocket route handler, it upgrades HTTP connection to WebSocket !!
+/// (the incoming request will upgrade to WS)
+async fn ws_route(
+    req: HttpRequest,
+    stream: web::Payload,
+    data: web::Data<AppState>
+) -> ActixResult<actix_web::HttpResponse> {
+    let claims = crate::auth::extractor::extract_claims_from_request(&req);
+    match claims {
+        Ok(c) => {
+            // check for user id validity
+            let user_id = c.sub.parse::<i32>().unwrap_or(0);
+            if user_id == 0 {
+                log::error!("WebSocket connection with invalid user ID!");
+                return Err(actix_web::error::ErrorUnauthorized("Invalid user ID"));
+            }
+
+            // we can start the WebSocket connection succesfully
+            return ws::start(
+                WsConn {
+                    id: user_id,
+                    addr: data.chat_server.clone(),
+                },
+                &req,
+                stream
+            );
+        }
+        Err(e) => {
+            log::error!("WebSocket connection authentication failed: {}", e);
+            return Err(actix_web::error::ErrorUnauthorized("Authentication failed"));
+        }
+    }
+}
+
+/// main function, it starts the backend server
+
 #[actix_web::main]
 async fn main() -> Result<()> {
     unsafe {
@@ -20,7 +73,7 @@ async fn main() -> Result<()> {
         env_logger::init();
     }
 
-    // monitor_cpu::start_logging();
+    let chat_server = Arc::new(Mutex::new(ChatServer::new()));
 
     HttpServer::new(move || {
         let logger = Logger::default();
@@ -32,15 +85,16 @@ async fn main() -> Result<()> {
             .max_age(3600);
 
         App::new()
+            .app_data(web::Data::new(AppState { chat_server: chat_server.clone() }))
             .wrap(logger)
             .wrap(cors)
             // Public routes (no auth required)
             .service(
                 web
                     ::scope("/api/users")
-                    .service(api::users::register_user)
-                    .service(api::users::login_user)
-                    .service(api::users::get_username_from_id)
+                    .service(api::users::register_user) // in api.ts    
+                    .service(api::users::login_user)    // in api.ts
+                    .service(api::users::get_username_from_id)  // NOT NEEDED ANYMORE
             )
             // Protected routes (auth required)
             .service(
@@ -64,8 +118,11 @@ async fn main() -> Result<()> {
                     .service(api::invites::invite_user) // in api.ts
                     .service(api::invites::get_user_invites) // in api.ts
                     .service(api::invites::accept_invite) // in api.ts
-                    .service(api::invites::reject_invite) //
-                // .service(api::invites::get_invites) // => to add methods later
+                    .service(api::invites::reject_invite) // in api.ts
+            )
+            .service(
+                web::scope("/ws")
+                .route("/", web::get().to(ws_route))
             )
     })
         .bind(("127.0.0.1", 8080))?

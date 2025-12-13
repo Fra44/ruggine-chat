@@ -500,3 +500,8 @@ export const rejectInvite = async (invite_id: number): Promise<void> => {
     }
 }
 
+
+// REAL-TIME COMMUNICATION (WEBSOCKET upgrade request) :
+
+export const getWebSocket
+
