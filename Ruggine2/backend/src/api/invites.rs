@@ -115,7 +115,11 @@ pub async fn invite_user(
 /// SUCCESS: returns the ID of the newly joined chat
 /// FAILURE: returns an error message
 #[get("/accept/{invite_id}")]
-pub async fn accept_invite(req: HttpRequest, path: Path<i32>) -> impl Responder {
+pub async fn accept_invite(
+    req: HttpRequest,
+    path: Path<i32>,
+    chat_server_data: web::Data<AppState>
+) -> impl Responder {
     let claims = extract_claims_from_request(&req);
     match claims {
         Ok(_claims) => {
@@ -126,7 +130,28 @@ pub async fn accept_invite(req: HttpRequest, path: Path<i32>) -> impl Responder 
             }
             let accept_invite_res = crate::model::invites::accept_invite_model(invite_id, user_id_);
             match accept_invite_res {
-                Ok(new_id) => { HttpResponse::Ok().body(new_id.to_string()) }
+                Ok(new_id) => { 
+                    // after the actual modifies in the DB, we add logic to notify the user through WebSocket about the new state :
+                    let chat_server = &chat_server_data.chat_server;
+                    let chat_server_locked = chat_server.lock().unwrap();
+                    let event_type = crate::web_socket::WsEventType::NewChat;
+                    
+                    // we retrieve the chat info to send as payload
+                    let new_chat = crate::repository::chats::get_chat_by_id(new_id);
+                    
+                    if let Some(chat) = new_chat {
+                        let chat_dto = crate::model::chats::map_chat_to_dto(chat);
+                        let msg = crate::web_socket::ServerWsMessage {
+                            event_type,
+                            payload: chat_dto,
+                        };
+                        chat_server_locked.send_to_users(
+                            &[user_id_],
+                            &serde_json::to_string(&msg).unwrap()
+                        );
+                    }
+                    
+                    HttpResponse::Ok().body(new_id.to_string()) }
                 Err(err_msg) => { HttpResponse::InternalServerError().body(err_msg) }
             }
         }

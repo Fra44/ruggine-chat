@@ -1,4 +1,3 @@
-
 /** This file contains the utilities to "use" a Chat object WITHOUT directly interacting with the one
  * extracted/inserted from/to the DB  */
 
@@ -9,7 +8,7 @@ use crate::repository::{
     chats::{ get_chat_type, is_user_part_of_group_chat, is_user_part_of_private_chat },
 };
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatDTO {
     pub id: i32,
     pub chat_type: String,
@@ -17,7 +16,7 @@ pub struct ChatDTO {
     pub user_id_2: Option<i32>,
     pub group_name: Option<String>,
     pub last_message_at: Option<String>,
-    // new addition : 
+    // new addition :
     pub username_1: Option<String>,
     pub username_2: Option<String>,
 }
@@ -27,11 +26,23 @@ impl From<crate::repository::chats::Chat> for ChatDTO {
         let mut un1: Option<String> = None;
         let mut un2: Option<String> = None;
         match chat.user_id_1 {
-            Some(uid1) => { un1 = Some(crate::model::users::get_username_for_user_id(uid1).unwrap_or("UNKNOWN_USER".to_string())); },
+            Some(uid1) => {
+                un1 = Some(
+                    crate::model::users
+                        ::get_username_for_user_id(uid1)
+                        .unwrap_or("UNKNOWN_USER".to_string())
+                );
+            }
             None => {}
         }
         match chat.user_id_2 {
-            Some(uid2) => { un2 = Some(crate::model::users::get_username_for_user_id(uid2).unwrap_or("UNKNOWN_USER".to_string())); },
+            Some(uid2) => {
+                un2 = Some(
+                    crate::model::users
+                        ::get_username_for_user_id(uid2)
+                        .unwrap_or("UNKNOWN_USER".to_string())
+                );
+            }
             None => {}
         }
         ChatDTO {
@@ -134,7 +145,14 @@ pub fn is_user_part_of_chat(user_id: i32, chat_id: i32) -> Result<bool, String> 
 /// A Result<i32, String> which is Ok(val: i32) if the chat was created successfully,
 /// where val is the id of the newly created chat,
 /// Err(String) if there was an error (e.g. chat already exists)
-pub fn create_private_chat_between_users(user_id_1: i32, user_id_2: i32) -> Result<i32, String> {
+pub fn create_private_chat_between_users(
+    user_id_1: i32,
+    user_id_2: i32
+) -> Result<ChatDTO, String> {
+    if user_id_1 == user_id_2 {
+        return Err("CANNOT_CREATE_PRIVATE_CHAT_WITH_SELF".to_string());
+    }
+
     use crate::repository::chats::{ create_private_chat };
 
     // we check that both users actually exist
@@ -173,7 +191,16 @@ pub fn create_private_chat_between_users(user_id_1: i32, user_id_2: i32) -> Resu
                     user_id_1: Some(user_id_1),
                     user_id_2: Some(user_id_2),
                 };
-                create_private_chat(payload)
+                let create_res = create_private_chat(payload);
+                match create_res {
+                    Ok(chat) => {
+                        let chat_dto = map_chat_to_dto(chat);
+                        return Ok(chat_dto);
+                    }
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
             }
         }
         Err(err_str) => {
@@ -236,5 +263,31 @@ pub fn create_group_chat(creator_id: i32, group_name: String) -> Result<i32, Str
         Err(e) => {
             return Err(e);
         }
+    }
+}
+
+pub fn get_users_in_chat(chat_id: i32) -> Result<Vec<i32>, String> {
+    // we check that the chat exists
+    let chat_opt = crate::repository::chats::get_chat_by_id(chat_id);
+    match chat_opt {
+        None => {
+            return Err("CHAT_NOT_FOUND".to_string());
+        }
+        Some(_) => {}
+    }
+
+    // first we check what chat_type it is :
+    let chat_type_res = get_chat_type(chat_id);
+    match chat_type_res {
+        Ok(chat_type) => {
+            if chat_type == "PRIVATE" {
+                crate::repository::chats::get_users_in_private_chat(chat_id)
+            } else if chat_type == "GROUP" {
+                crate::repository::chats::get_users_in_group_chat(chat_id)
+            } else {
+                Err("INVALID_CHAT_TYPE".to_string())
+            }
+        }
+        Err(err_str) => { Err(err_str) }
     }
 }

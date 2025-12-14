@@ -32,12 +32,39 @@ pub struct Chat {
     pub last_message_at: Option<chrono::NaiveDateTime>,
 }
 
+/// Repository level function that retrieves a chat by ID from the database.
+/// # Arguments
+/// `chat_id` - An integer representing the chat ID to be retrieved.
+/// # Returns
+/// A Chat struct representing the chat with the specified ID.
+/// If no chat is found, returns None.
+pub fn get_chat_by_id(chat_id: i32) -> Option<Chat> {
+    println!("Retrieving chat with ID {:?}", chat_id);
+
+    use crate::schema::chats::dsl::*;
+
+    let mut connection = establish_connection();
+
+    match
+        chats
+            .filter(id.eq(chat_id as i32))
+            .first::<Chat>(&mut connection)
+            .optional()
+    {
+        Ok(chat_opt) => chat_opt,
+        Err(e) => {
+            println!("Database error: {}", e);
+            None
+        }
+    }
+}
+
 /**
  * Repository level function that creates a new private chat into the database.
  * # Arguments
  * `chat` - A CreatePrivateChat struct containing the chat details.
  */
-pub fn create_private_chat(chat: CreatePrivateChat) -> Result<i32, String> {
+pub fn create_private_chat(chat: CreatePrivateChat) -> Result<Chat, String> {
     println!(
         "Creating new private chat between users: {:?} and {:?}",
         chat.user_id_1,
@@ -63,7 +90,7 @@ pub fn create_private_chat(chat: CreatePrivateChat) -> Result<i32, String> {
             .order(id.desc())
             .first::<Chat>(connection)
             .expect("Error loading chat");
-        Ok(created_chat.id)
+        Ok(created_chat)
     } else {
         Err("Failed to create private chat".to_string())
     }
@@ -296,5 +323,47 @@ pub fn update_chat_last_message_at(
         Ok(())
     } else {
         Err("No chat found with the given ID".to_string())
+    }
+}
+
+/// Repository level function that retrieves all user IDs in a given chat.
+/// # Arguments
+/// `chat_id_` - An integer representing the chat ID whose user IDs are to be retrieved.
+/// # Returns
+/// A Result<Vec<i32>, String> which is Ok(Vec<i32>) containing user IDs if successful,
+/// Err(String) if there was an error.
+pub fn get_users_in_group_chat(chat_id_: i32) -> Result<Vec<i32>, String> {
+    use crate::schema::chat_components::dsl::*;
+    let mut connection = establish_connection();
+
+    let results = chat_components
+        .filter(chat_id.eq(chat_id_ as i32))
+        .load::<super::chat_components::ChatComponent>(&mut connection)
+        .map_err(|e| format!("Error loading chat components: {}", e))?;
+
+    let user_ids: Vec<i32> = results
+        .into_iter()
+        .map(|cc| cc.user_id)
+        .collect();
+    Ok(user_ids)
+}
+
+pub fn get_users_in_private_chat(chat_id_: i32) -> Result<Vec<i32>, String> {
+    let chat_opt = get_chat_by_id(chat_id_);
+    match chat_opt {
+        Some(chat) => {
+            if chat.chat_type != "PRIVATE" {
+                return Err("CHAT_NOT_PRIVATE_ERROR".to_string());
+            }
+            let mut user_ids = Vec::new();
+            if let Some(uid1) = chat.user_id_1 {
+                user_ids.push(uid1);
+            }
+            if let Some(uid2) = chat.user_id_2 {
+                user_ids.push(uid2);
+            }
+            Ok(user_ids)
+        }
+        None => { Err("CHAT_NOT_FOUND_ERROR".to_string()) }
     }
 }

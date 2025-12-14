@@ -242,9 +242,9 @@ export const getChats = async (): Promise<ChatDAO[]> => {
 /**
  * function to call the backend API endpoint for creating a new private chat with another user
  * @param otherUserId: number - the ID of the other user to create the private chat with
- * @returns the ID of the newly created private chat
+ * @returns the ChatDAO object representing the newly created private chat
  */
-export const createNewPrivateChat = async (otherUserId: number): Promise<number> => {
+export const createNewPrivateChat = async (otherUserId: number): Promise<ChatDAO> => {
     try {
         const res = await fetch(`${BASE_URL}/chats/new_private/${otherUserId}`, {
             method: "GET",
@@ -257,8 +257,11 @@ export const createNewPrivateChat = async (otherUserId: number): Promise<number>
         if (!res.ok) {
             throw await toApiError(res);
         }
-        const data = await res.text();
-        const toRet = Number.parseInt(data, 10);
+        // ora viene ritornato un JSON (con struttura ChatDAO) e non più solo l'ID
+        const toRet = convertToChatDAO(await res.json());
+        if (toRet === null) {
+            throw new Error("Invalid chat data received from server");
+        }
         return toRet;
     } catch (error) {
         console.error("Error creating new private chat:", error);
@@ -269,6 +272,7 @@ export const createNewPrivateChat = async (otherUserId: number): Promise<number>
 /**
  * function to call the backend API endpoint for creating a new group chat
  * @param groupName: string - the name of the new group chat
+ * @returns the ID of the newly created group chat
  */
 export const createNewGroupChat = async (groupName: string): Promise<number> => {
     try {

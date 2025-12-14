@@ -202,7 +202,7 @@ pub fn create_invite_for_user(user_id_sender: i32, user_id_receiver: i32, chat_i
                         // if we reach here, it means there is no pending invite for that user to that chat
                         let create_payload = CreateInvite {
                             chat_id: Some(chat_id_),
-                            sender_id: None, // system-generated invite
+                            sender_id: Some(user_id_sender),
                             receiver_id: Some(user_id_receiver),
                         };
                         crate::repository::invites::create_invite(create_payload)
