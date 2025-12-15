@@ -24,7 +24,7 @@ pub struct ChatComponent {
  * # Arguments
  * `chat_component` - An AddUserToChat struct containing the chat component details.
  */
-pub fn add_chat_component(chat_component: AddUserToChat) {
+pub fn add_chat_component(chat_component: AddUserToChat) -> Result<(), String> {
     println!(
         "Adding user {:?} to chat {:?} as {:?}",
         chat_component.user_id,
@@ -42,11 +42,17 @@ pub fn add_chat_component(chat_component: AddUserToChat) {
 
     let connection = &mut establish_connection();
 
-    diesel
+    let insertion = diesel
         ::insert_into(chat_components)
         .values(&new_chat_component)
         .execute(connection)
         .expect("Error saving new chat component");
+
+    if insertion == 1 {
+        Ok(())
+    } else {
+        Err("FAILED_TO_ADD_CHAT_COMPONENT".to_string())
+    }
 }
 
 /**

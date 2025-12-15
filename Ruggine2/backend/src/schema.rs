@@ -4,7 +4,7 @@ diesel::table! {
     chat_components (chat_id, user_id) {
         chat_id -> Int4,
         user_id -> Int4,
-        #[max_length = 5]
+        #[max_length = 6]
         role -> Varchar,
     }
 }
@@ -19,6 +19,7 @@ diesel::table! {
         #[max_length = 30]
         group_name -> Nullable<Varchar>,
         created_at -> Nullable<Timestamp>,
+        last_message_at -> Nullable<Timestamp>,
     }
 }
 

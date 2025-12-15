@@ -4,13 +4,67 @@ mod api;
 mod repository;
 mod auth;
 mod monitor_cpu;
+mod web_socket;
 
-use actix_web::{ App, HttpServer, web, middleware::Logger };
+// imports from web_socket module
+use web_socket::{ WsConn, ChatServer };
+
+use std::sync::{ Arc, Mutex };
+use actix_web_actors::ws; // Necessario per l'handler WS
+use actix_cors::Cors;
+use actix_web::{
+    App,
+    HttpServer,
+    web,
+    middleware::Logger,
+    http::header,
+    HttpRequest,
+    Result as ActixResult,
+};
 use std::io::Result;
 
-/**
- * main function, it starts the backend server
- */
+/// Application state shared across handlers
+pub struct AppState {
+    pub chat_server: Arc<Mutex<ChatServer>>,
+    // ... if others "global data" nedd to be added, do it HERE
+}
+
+/// WebSocket route handler, it upgrades HTTP connection to WebSocket !!
+/// (the incoming request will upgrade to WS)
+async fn ws_route(
+    req: HttpRequest,
+    stream: web::Payload,
+    data: web::Data<AppState>
+) -> ActixResult<actix_web::HttpResponse> {
+    let claims = crate::auth::extractor::extract_claims_from_request(&req);
+    match claims {
+        Ok(c) => {
+            // check for user id validity
+            let user_id = c.sub.parse::<i32>().unwrap_or(0);
+            if user_id == 0 {
+                log::error!("WebSocket connection with invalid user ID!");
+                return Err(actix_web::error::ErrorUnauthorized("Invalid user ID"));
+            }
+
+            // we can start the WebSocket connection succesfully
+            return ws::start(
+                WsConn {
+                    id: user_id,
+                    addr: data.chat_server.clone(),
+                },
+                &req,
+                stream
+            );
+        }
+        Err(e) => {
+            log::error!("WebSocket connection authentication failed: {}", e);
+            return Err(actix_web::error::ErrorUnauthorized("Authentication failed"));
+        }
+    }
+}
+
+/// main function, it starts the backend server
+
 #[actix_web::main]
 async fn main() -> Result<()> {
     unsafe {
@@ -19,39 +73,72 @@ async fn main() -> Result<()> {
         env_logger::init();
     }
 
-    monitor_cpu::start_logging();
+    let chat_server = Arc::new(Mutex::new(ChatServer::new()));
+    let to_use = chat_server.clone();
+    // creiamo un thread, che dopo 1 minuto dall'avvio del server, tramite il websocket dell'utente 1,
+    // invia un messaggio di tipo NEW_MESSAGE importando da web_socket il ServerWsMessage e WsEventType:
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_secs(60));
+        let my_type = web_socket::WsEventType::NewMessage;
+        let msg = web_socket::ServerWsMessage {
+            event_type: my_type,
+            payload: serde_json::json!({
+                "chat_id": 1,
+                "message_id": 999,
+                "sender_id": 1,
+                "content": "This is a test message sent after 1 minute from server start.".to_string(),
+                "sent_at": chrono::Utc::now().to_rfc3339(),
+            }),
+        };
+        to_use.lock().unwrap().send_to_users(&[1], &serde_json::to_string(&msg).unwrap());
+    });
 
     HttpServer::new(move || {
         let logger = Logger::default();
         let auth_middleware = auth::Auth;
+        let cors = Cors::default()
+            .allowed_origin("http://localhost:5173")
+            .allowed_methods(vec!["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+            .allowed_headers(vec![header::AUTHORIZATION, header::CONTENT_TYPE])
+            .max_age(3600);
 
         App::new()
+            .app_data(web::Data::new(AppState { chat_server: chat_server.clone() }))
             .wrap(logger)
+            .wrap(cors)
             // Public routes (no auth required)
             .service(
-                web::scope("/api/users")
-                    .service(api::users::register_user)
-                    .service(api::users::login_user)
+                web
+                    ::scope("/api/users")
+                    .service(api::users::register_user) // in api.ts
+                    .service(api::users::login_user) // in api.ts
+                // .service(api::users::get_username_from_id)  // NOT NEEDED ANYMORE
             )
             // Protected routes (auth required)
             .service(
-                web::scope("/api/chats")
+                web
+                    ::scope("/api/chats")
                     .wrap(auth_middleware.clone())
-                    .service(api::chats::get_chats)
-                    .service(api::messages::get_chat_messages)
-                    .service(api::messages::post_chat_message)
-                    // .service(api::chats::get_chats) // => to add methods later
+                    .service(api::chats::get_chats) // in api.ts
+                    .service(api::chats::new_private_chat) // in api.ts
+                    .service(api::chats::new_group_chat) // in api.ts
+                    .service(api::messages::get_chat_messages) // in api.ts
+                    .service(api::messages::post_chat_message) // in api.ts
             )
             .service(
-                web::scope("/api/messages")
-                    .wrap(auth_middleware.clone())
-                    // .service(api::messages::get_messages) // => to add methods later
+                web::scope("/api/messages").wrap(auth_middleware.clone())
+                // .service(api::messages::get_messages) // => to add methods later
             )
             .service(
-                web::scope("/api/invites")
+                web
+                    ::scope("/api/invites")
                     .wrap(auth_middleware.clone())
-                    // .service(api::invites::get_invites) // => to add methods later
+                    .service(api::invites::invite_user) // in api.ts
+                    .service(api::invites::get_user_invites) // in api.ts
+                    .service(api::invites::accept_invite) // in api.ts
+                    .service(api::invites::reject_invite) // in api.ts
             )
+            .service(web::scope("/ws").route("/", web::get().to(ws_route)))
     })
         .bind(("127.0.0.1", 8080))?
         .run().await

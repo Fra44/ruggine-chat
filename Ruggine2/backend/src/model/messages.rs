@@ -1,4 +1,3 @@
-
 /** This file contains the utilities to "use" a Chat object WITHOUT directly interacting with the one
  * extracted/inserted from/to the DB  */
 
@@ -11,7 +10,7 @@ use crate::model::chats::is_user_part_of_chat;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MessageDTO {
     pub id: i32,
-    // pub chat_id: i32,    // --> useless because the messages are retrieved for a specific chat already
+    pub chat_id: i32,
     pub sender_id: i32,
     pub content: String,
     pub sent_at: String,
@@ -21,7 +20,7 @@ impl From<crate::repository::messages::Message> for MessageDTO {
     fn from(message: crate::repository::messages::Message) -> Self {
         MessageDTO {
             id: message.id,
-            // chat_id: message.chat_id,
+            chat_id: message.chat_id,
             sender_id: message.sender_id,
             content: message.content,
             sent_at: message.sent_at
@@ -56,19 +55,17 @@ pub fn map_message_to_dto(message: crate::repository::messages::Message) -> Mess
 /// `user_id` - The ID of the user sending the message.
 /// `chat_id` - The ID of the group chat where the message is being sent.
 /// `content` - The content of the message being sent.
-pub fn send_message(user_id: i32, chat_id: i32, content: String) {
+pub fn send_message(user_id: i32, chat_id: i32, content: String) -> Result<MessageDTO, String> {
     // first we need to check if user_id is part of chat_id
     let is_part_res = is_user_part_of_chat(user_id, chat_id);
     match is_part_res {
         Ok(is_part) => {
             if !is_part {
-                println!("User {:?} is not part of chat {:?}, cannot send message", user_id, chat_id);
-                return;
+                return Err("USER_NOT_AUTHORIZED".to_string());
             }
         }
         Err(err_str) => {
-            println!("Error checking if user {:?} is part of chat {:?}: {:?}", user_id, chat_id, err_str);
-            return;
+            return Err(err_str);
         }
     }
     // if user is part of chat, we can create the message
@@ -78,5 +75,20 @@ pub fn send_message(user_id: i32, chat_id: i32, content: String) {
         content,
     };
 
-    crate::repository::messages::create_message(new_message);
+    let create_res = crate::repository::messages::create_message(new_message);
+    match create_res {
+        Ok(msg) => {
+            let update_res = crate::repository::chats::update_chat_last_message_at(
+                chat_id,
+                chrono::Utc::now().naive_utc()
+            );
+            if update_res.is_err() {
+                return Err("FAILED_UPDATING_CHAT_TIMESTAMP".to_string());
+            }
+            Ok(map_message_to_dto(msg))
+        }
+        Err(err_str) => {
+            return Err(err_str);
+        }
+    }
 }

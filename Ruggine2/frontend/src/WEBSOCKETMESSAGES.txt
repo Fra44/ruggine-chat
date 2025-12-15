@@ -1,0 +1,46 @@
+- Notifica di un NUOVO INVITO per l'utente:
+
+{
+    "type": "NEW_INVITE",
+    "payload": {
+        "accepted":null,    // sarà sempre null perché l'utente deve ancora accept(TRUE)/reject(FALSE)
+        "chat_id":4,        // number
+        "id":2,             // number
+        "receiver_id":1,    // number    
+        "sender_id":2,      // number
+        "sent_at":"2025-12-13T12:07:01.195590200+00:00" // String che indica il tempo (rfc3339)
+    }    
+}
+
+
+- Notifica di una NUOVA CHAT per l'utente (dopo aver accettato un invito O dopo che un utente crea una chat privata
+// suggerimento: la logica che ho usato richiede di gestire la chat privata in modo tale che se un utente decide di "crearla", allora l'altro utente verrà "notificato", nel senso che anhce
+// se NON si scrive nessun messaggio, una volta aperta la chat, magari dopo una "conferma ulteriore" da parte dell'utente lato UI,
+// questa viene creata "per entrambi" e verrà quindi mostrata nella lista delle chat ):
+
+{
+    "type": "NEW_CHAT",
+    "payload": {
+        "id": number,
+        "chat_type": string,
+        "user_id_1": number | null,
+        "user_id_2": number | null,
+        "group_name": string | null,
+        "last_message_at": string | null,
+        "username_1": string | null,
+        "username_2": string | null,
+    }
+}
+
+- Notifica di un NUOVO MESSAGGIO (sia per chat GROUP che PRIVATE) :
+
+{
+    "type": "NEW_MESSAGE",
+    "payload": {
+        "id": number,
+        "chat_id": number,
+        "sender_id": number,
+        "content": string,
+        "sent_at": string
+    }
+}

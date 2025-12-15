@@ -1,13 +1,6 @@
 use std::fmt;
 use actix_web::{
-    HttpResponse,
-    body,
-    error::ResponseError,
-    get,
-    http::{ StatusCode, header::ContentType },
-    post,
-    put,
-    web::{ Data, Json, Path },
+    HttpResponse, Responder, body, error::ResponseError, get, http::{ StatusCode, header::ContentType }, post, put, web::{ Data, Json, Path }
 };
 use serde::{ Deserialize, Serialize };
 use crate::repository::args::{ CreateUser, LoginUser };
@@ -125,5 +118,30 @@ pub async fn login_user(body: Json<LoginUser>) -> Result<HttpResponse, UserError
             }
         }
         None => Err(UserError::UserNotFound),
+    }
+}
+
+
+/// # `NOT USED ANYMORE`  
+/// API endpoint to get the username for a given user ID.
+/// # Arguments
+/// `user_id` - The ID of the user as a path parameter.
+/// # Returns
+/// An HttpResponse containing the username in JSON format or an appropriate error.
+#[get("/{id}")]
+pub async fn get_username_from_id(user_id: Path<i32>) -> impl Responder {
+    let user_id_ = user_id.into_inner();
+    let get_username_res = crate::model::users::get_username_for_user_id(user_id_);
+    match get_username_res {
+        Ok(username) => {
+            return Ok(HttpResponse::Ok().json(username));
+        }
+        Err(err_str) => {
+            if err_str == "USER_NOT_FOUND" {
+                return Err(UserError::UserNotFound);
+            } else {
+                return Err(UserError::BadUserRequest);
+            }
+        }
     }
 }

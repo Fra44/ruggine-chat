@@ -31,8 +31,10 @@ pub struct Message {
  * Repository level function that creates a new message into the database.
  * # Arguments
  * `message` - A CreateMessage struct containing the message details.
+ * # Returns
+ * A Result containing the created Message struct or an error string.
  */
-pub fn create_message(message: CreateMessage) {
+pub fn create_message(message: CreateMessage) -> Result<Message, String> {
     println!(
         "Creating new message in chat {:?} from sender {:?}: {:?}",
         message.chat_id,
@@ -50,11 +52,21 @@ pub fn create_message(message: CreateMessage) {
         content: &message.content,
     };
 
-    diesel
+    let insert_res = diesel
         ::insert_into(messages)
         .values(&new_message)
         .execute(connection)
         .expect("Error saving new message");
+    if insert_res == 1 {
+        // Return the newly created message
+        let created_message = messages
+            .order(id.desc())
+            .first::<Message>(connection)
+            .map_err(|e| format!("Error retrieving newly created message: {}", e))?;
+        Ok(created_message)
+    } else {
+        Err("FAILED_SENDING_MESSAGE".to_string())
+    }
 }
 
 /**
