@@ -6,4 +6,4 @@ file = "src/schema.rs"
 custom_type_derives = ["diesel::query_builder::QueryId", "Clone"]
 
 [migrations_directory]
-dir = "C:\\Users\\giaco\\OneDrive\\Desktop\\UNIVERSITA\\POLITO\\1_ANNO\\2_SEMESTRE\\PdS Programmazione di sistema\\progetto\\G20\\Ruggine2\\backend\\migrations"
+dir = "./migrations"
