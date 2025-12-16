@@ -7,9 +7,12 @@ target/
 .idea/
 node_modules/
 dist/
+.env
 *.bak
 *.swp
 *.class
 *.exe
 *.dll
 *.so
+Ruggine2/backend/setup.md
+Ruggine2/frontend/setup.md

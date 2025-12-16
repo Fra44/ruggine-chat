@@ -23,7 +23,7 @@ pub fn start_logging() {
         // in order to get a correct cpu usage value we need to await at least 0.2 sec
         tokio::time::sleep(Duration::from_millis(222)).await;
 
-        let mut interval = tokio::time::interval(Duration::from_mins(2));
+        let mut interval = tokio::time::interval(Duration::from_secs(120));
         loop {
             interval.tick().await;
 
