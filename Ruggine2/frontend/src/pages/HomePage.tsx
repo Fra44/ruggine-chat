@@ -56,7 +56,7 @@ export default function HomePage() {
                 <Col xs={12} sm={4} lg={3} className="chatlist-sidebar">
                     <div className="d-flex justify-content-between align-items-center mt-3 mb-4">
                         <h4 className="auth-title" style={{ fontSize: '1.5rem', textAlign: 'center' }}>
-                            Chats - {user.username}
+                            Chats - {user ? user.username : ""}
                         </h4>
                         <Button variant="outline-danger" size="sm" onClick={logout}>
                             Logout
@@ -67,7 +67,7 @@ export default function HomePage() {
                             <Spinner animation="border" variant="light" />
                         </div>
                     ) : (
-                        <ChatList
+                        user && <ChatList
                             chats={chats}
                             selectedChatId={selectedChat?.id}
                             onSelectChat={handleSelectChat}
@@ -80,13 +80,15 @@ export default function HomePage() {
                 {/* COLONNA DESTRA: FINESTRA MESSAGGI (Spazio Rimanente) */}
                 {/* ------------------------------------- */}
                 <Col xs={12} sm={8} lg={9} className="chat-area-main p-0">
-                    <ChatWindow
-                        chat={selectedChat}
-                        messages={messages}
-                        loading={loadingMessages}
-                        currentUser={user}
-                    // L'invio del messaggio sarà gestito da ChatWindow usando il Context
-                    />
+                    {user && (
+                        <ChatWindow
+                            chat={selectedChat}
+                            messages={messages}
+                            loading={loadingMessages}
+                            currentUser={user}
+                        // L'invio del messaggio sarà gestito da ChatWindow usando il Context
+                        />
+                    )}
                 </Col>
 
             </Row>
