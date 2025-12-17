@@ -213,7 +213,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         const username = payload.username ?? payload.user ?? payload.name ?? null;
                         if (!Number.isNaN(id) && username) {
                             setUser({ user_id: id, username });
-                            navigate('/homepage');
                             return;
                         }
                     }
