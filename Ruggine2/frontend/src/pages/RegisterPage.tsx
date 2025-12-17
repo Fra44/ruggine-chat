@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Container, Form, Button, Card, Row, Col } from "react-bootstrap";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { toast } from "react-hot-toast";
 
@@ -43,7 +43,9 @@ export default function RegisterPage() {
     };
 
     // we do not allow user to access login page if already logged in
-    if(user) navigate("/homepage");
+    if(user) {
+        return <Navigate to="/homepage" replace />;
+    }
 
     return (
         <Container className="my-5 auth-container">

@@ -1,4 +1,4 @@
-import { Routes, Route, useNavigate, } from "react-router-dom";
+import { Routes, Route, Navigate, } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
 
@@ -12,13 +12,13 @@ import { useAppContext } from "./context/AppContext";
 // Importiamo l'hook per l'utente, anche se qui non lo usiamo direttamente
 // ma AppProvider si occupa del routing iniziale.
 // import { useAppContext } from "./context/AppContext"; 
+import NotFoundPage from "./pages/NotFoundPage";
 
 function App() {
 
   // Rimosso: const [user, setUser] = useState<User | null>(null);
 
-  const pera = useAppContext();
-  const navigate = useNavigate();
+  const appContext = useAppContext();
   return (
     <>
       <Toaster
@@ -41,10 +41,12 @@ function App() {
       />
       <Routes>
         {/* Usiamo HomePage senza props, prenderà lo stato dal Context */}
-        <Route path="/homepage" element={pera.user ? <HomePage /> : <LoginPage/>} />
+        <Route path="/" element={<Navigate to={appContext.user ? "/homepage" : "/login"} replace />} />
+        <Route path="/homepage" element={appContext.user ? <HomePage /> : <Navigate to="/login" replace />} />
         {/* Usiamo LoginPage senza props, prenderà le azioni dal Context */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/*" element={<NotFoundPage />} />
       </Routes>
     </>
   );
