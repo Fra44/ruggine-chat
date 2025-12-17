@@ -509,7 +509,7 @@ export const rejectInvite = async (invite_id: number): Promise<void> => {
 
 // REAL-TIME COMMUNICATION (WEBSOCKET upgrade request) :
 
-export type WsEventType = 'NEW_MESSAGE' | 'USER_JOINED' | 'USER_LEFT' | 'USER_TYPING' | 'NEW_CHAT' | 'NEW_INVITE';
+export type WsEventType = 'NEW_MESSAGE' | 'USER_JOINED' | 'USER_LEFT' | 'USER_TYPING' | 'NEW_CHAT' | 'NEW_INVITE' | 'CHAT UPDATED' ;
 
 /**
  * Generic interface representing a WebSocket message from the server.

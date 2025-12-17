@@ -194,21 +194,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const checkAuth = async () => {
             const token = localStorage.getItem('token');
             if (token) {
-                // In un'app reale, qui faresti una chiamata API per ottenere 
-                // i dati dell'utente dal token (es. GET /api/me). 
-                // Per ora, assumiamo di non avere i dati qui e reindirizziamo al login.
-                // o cerchiamo di estrarre l'ID utente dal token se possibile lato client.
+                // Proviamo a decodificare il token JWT per ricostruire lo stato `user`.
+                try {
+                    const decodePayload = (t: string) => {
+                        const parts = t.split('.');
+                        if (parts.length < 2) return null;
+                        const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+                        // pad
+                        const pad = b64.length % 4;
+                        const padded = pad ? b64 + '='.repeat(4 - pad) : b64;
+                        const json = atob(padded);
+                        return JSON.parse(json);
+                    };
 
-                // Per simulazione, navighiamo alla home e lasciamo che la HomePage 
-                // gestisca la verifica, ma prima proviamo a estrarre l'ID utente 
-                // dal token (se fosse un JWT non criptato)
-
-                // Dato che LoginPage salva User info, proviamo a usare localStorage
-                // per l'utente, se non è un dato sensibile.
-
-                // In mancanza di un endpoint /me, forziamo il logout se il token è solo
-                // una stringa vuota, altrimenti reindirizziamo.
-                navigate('/homepage');
+                    const payload = decodePayload(token);
+                    if (payload) {
+                        const id = Number(payload.user_id ?? payload.sub ?? payload.uid ?? null);
+                        const username = payload.username ?? payload.user ?? payload.name ?? null;
+                        if (!Number.isNaN(id) && username) {
+                            setUser({ user_id: id, username });
+                            navigate('/homepage');
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Failed to decode token payload', err);
+                }
+                // fallback: se non riusciamo a ricostruire l'utente, rimuoviamo il token
+                // per evitare loop e forziamo il logout
+                // localStorage.removeItem('token');
+                // navigate('/login');
             }
         };
         checkAuth();

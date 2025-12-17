@@ -44,7 +44,7 @@ function App() {
         <Route path="/" element={<Navigate to={appContext.user ? "/homepage" : "/login"} replace />} />
         <Route path="/homepage" element={appContext.user ? <HomePage /> : <Navigate to="/login" replace />} />
         {/* Usiamo LoginPage senza props, prenderà le azioni dal Context */}
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={appContext.user ? <Navigate to="/homepage" replace /> : <LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/*" element={<NotFoundPage />} />
       </Routes>
