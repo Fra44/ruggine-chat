@@ -26,8 +26,7 @@ interface AppContextType {
     setSelectedChat: (chat: ChatDAO | null) => void;
     sendMessage: (chatId: number, content: string) => Promise<void>;
     fetchMessages: (chatId: number) => Promise<void>;
-    // Usato solo per simulare l'aggiornamento (in un'app reale, questo è un'API REST)
-    // setMessages: React.Dispatch<React.SetStateAction<MessageDAO[]>>;
+    setChats: React.Dispatch<React.SetStateAction<ChatDAO[]>>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -301,6 +300,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedChat: handleSetSelectedChat,
         sendMessage: handleSendMessage,
         fetchMessages,
+        setChats,
     };
 
     return (

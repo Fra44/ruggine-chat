@@ -9,10 +9,11 @@ interface ChatListProps {
     chats: ChatDAO[];
     selectedChatId: number | undefined;
     onSelectChat: (chat: ChatDAO) => void;
-    user: User
+    user: User;
+    search: string;
 }
 
-export const ChatList: React.FC<ChatListProps> = ({ chats, selectedChatId, onSelectChat, user }) => {
+export const ChatList: React.FC<ChatListProps> = ({ chats, selectedChatId, onSelectChat, user, search }) => {
 
     const getChatName = (chat: ChatDAO): string => {
         if (chat.chat_type === 'GROUP') {
@@ -28,12 +29,17 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, selectedChatId, onSel
         return `Chat ${chat.id}`;
     };
 
+    // Filtra le chat in base al testo della searchbox (case-insensitive)
+    const filteredChats = chats.filter(chat =>
+        getChatName(chat).toLowerCase().includes(search.toLowerCase())
+    );
+
     return (
         <ListGroup variant="flush" className="chat-list-group">
-            {chats.length === 0 ? (
+            {filteredChats.length === 0 ? (
                 <div className="text-center mt-3 auth-secondary-text">No chats yet.</div>
             ) : (
-                chats.map((chat) => (
+                filteredChats.map((chat) => (
                     <ListGroup.Item
                         key={chat.id}
                         action
