@@ -56,7 +56,8 @@ export default function HomePage() {
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState("");
     // Funzione per creare una nuova chat privata
-    const handleCreateChat = async () => {
+    const handleCreateChat = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         setError("");
         setCreating(true);
         try {
@@ -117,7 +118,7 @@ export default function HomePage() {
                             <Modal.Title>Nuova chat privata</Modal.Title>
                         </Modal.Header>
                         <Modal.Body>
-                            <Form>
+                            <Form onSubmit={handleCreateChat}>
                                 <Form.Group>
                                     <Form.Label>Username destinatario</Form.Label>
                                     <Form.Control
