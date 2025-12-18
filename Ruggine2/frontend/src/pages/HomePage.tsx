@@ -11,7 +11,7 @@ import { useNavigate } from "react-router"; // Mantenuto solo per navigate
 
 import { useAppContext } from "../context/AppContext"; // Importiamo il Context
 import type { ChatDAO } from "../api/api";
-import { createNewPrivateChat, createNewGroupChat, getChats } from "../api/api";
+import { createNewPrivateChat, createNewGroupChat, getChats, getUserIdByUsername } from "../api/api";
 
 // Rimosso: interface HomePageProps { user: User | null; }
 
@@ -60,12 +60,12 @@ export default function HomePage() {
         setError("");
         setCreating(true);
         try {
-            const otherUserId = Number(username);
-            if (isNaN(otherUserId) || otherUserId <= 0) {
-                setError("Inserisci un ID utente valido");
+            if (!username.trim()) {
+                setError("Inserisci un username valido");
                 setCreating(false);
                 return;
             }
+            const otherUserId = await getUserIdByUsername(username.trim());
             const newChat = await createNewPrivateChat(otherUserId);
             // Aggiorna la lista delle chat dopo la creazione
             const updatedChats = await getChats();
@@ -74,7 +74,7 @@ export default function HomePage() {
             setUsername("");
             setSelectedChat(newChat);
         } catch (e) {
-            setError("Errore nella creazione della chat");
+            setError("Errore nella creazione della chat: utente non trovato o chat già esistente");
         } finally {
             setCreating(false);
         }
@@ -105,6 +105,7 @@ export default function HomePage() {
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
+                    {/* New chat button */}
                     <div className="mb-3 d-flex gap-2">
                         <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
                             Nuova chat
