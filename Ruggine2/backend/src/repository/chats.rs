@@ -168,7 +168,7 @@ pub fn get_group_chats_for_user(user_id_: i32) -> Vec<Chat> {
         .select(chats::all_columns())
         .load::<Chat>(connection)
         .expect("Error loading group chats");
-    println!("Found group chats: {:?}", results);
+    //println!("Found group chats: {:?}", results);
     results
 }
 

@@ -89,7 +89,7 @@ pub fn get_user_chats(user_id: i32) -> Vec<ChatDTO> {
         let b_time = b.last_message_at.clone().unwrap_or_else(|| "1970-01-01 00:00:00".to_string());
         b_time.cmp(&a_time)
     });
-    println!("Sorted chats for user {:?}:\n {:?}", user_id, chats_dto);
+    //println!("Sorted chats for user {:?}:\n {:?}", user_id, chats_dto);
     chats_dto
 }
 
