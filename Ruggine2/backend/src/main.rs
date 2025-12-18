@@ -106,15 +106,19 @@ async fn main() -> Result<()> {
             .app_data(web::Data::new(AppState { chat_server: chat_server.clone() }))
             .wrap(logger)
             .wrap(cors)
-            // Public routes (no auth required)
+            // Routes for /api/users (register and login are public, get_user_id_by_username is protected)
             .service(
                 web
                     ::scope("/api/users")
                     .service(api::users::register_user) // in api.ts
                     .service(api::users::login_user) // in api.ts
+                    .service(
+                        web::scope("")
+                            .wrap(auth_middleware.clone())
+                            .service(api::users::get_user_id_by_username) // protected
+                    )
                 // .service(api::users::get_username_from_id)  // NOT NEEDED ANYMORE
             )
-            // Protected routes (auth required)
             .service(
                 web
                     ::scope("/api/chats")

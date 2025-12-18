@@ -112,6 +112,22 @@ export const getUsernameFromUserId = async (user_id: number): Promise<string> =>
     return data.username;
 }
 
+export const getUserIdByUsername = async (username: string): Promise<number> => {
+    const res = await fetch(`${BASE_URL}/users/by_username/${username}`, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${getToken()}`
+        },
+    });
+
+    if (!res.ok) {
+        throw await toApiError(res);
+    }
+    const data = await res.json();
+    return data;
+}
+
 // for the requests that require authentication, we will need to add the Authorization header with the token by using
 // the getToken() utility function defined above IN the headers :
 /*

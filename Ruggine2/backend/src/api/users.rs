@@ -145,3 +145,12 @@ pub async fn get_username_from_id(user_id: Path<i32>) -> impl Responder {
         }
     }
 }
+
+#[get("/by_username/{username}")]
+pub async fn get_user_id_by_username(username: Path<String>) -> impl Responder {
+    let username_ = username.into_inner();
+    match crate::repository::users::find_user_by_username(&username_) {
+        Some(user) => Ok(HttpResponse::Ok().json(user.id)),
+        None => Err(UserError::UserNotFound),
+    }
+}
