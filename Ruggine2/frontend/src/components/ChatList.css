@@ -1,0 +1,34 @@
+.chat-list-item {
+  position: relative;
+  padding: 12px 12px;
+  min-height: 56px;
+}
+
+.chat-item-body {
+  position: relative;
+  padding-right: 64px; /* leave space for time */
+  padding-bottom: 22px; /* leave space at bottom for the time line */
+}
+
+.chat-item-name {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.chat-item-time {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  color: #6c757d; /* bootstrap secondary / gray */
+  font-size: 0.75rem; /* smaller */
+}
+
+/* When the chat item is active (selected), make the time text white for contrast */
+.chat-list-item.active .chat-item-time {
+  color: #ffffff;
+}
+
+.chat-item-time::before {
+  content: '';
+}

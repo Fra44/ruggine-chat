@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ListGroup } from 'react-bootstrap';
+import './ChatList.css';
 import { type ChatDAO } from '../api/api';
 import type { User } from '../models/models';
 
@@ -47,10 +48,12 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, selectedChatId, onSel
                         active={chat.id === selectedChatId}
                         className="chat-list-item"
                     >
-                        <div className="chat-item-name">{getChatName(chat)}</div>
-                        <small className="chat-item-time">
-                            {chat.last_message_at ? new Date(chat.last_message_at).toLocaleTimeString() : 'No messages'}
-                        </small>
+                        <div className="chat-item-body">
+                            <div className="chat-item-name">{getChatName(chat)}</div>
+                            <small className="chat-item-time">
+                                {chat.last_message_at ? new Date(chat.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'No messages'}
+                            </small>
+                        </div>
                     </ListGroup.Item>
                 ))
             )}
