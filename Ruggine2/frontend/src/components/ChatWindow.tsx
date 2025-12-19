@@ -1,9 +1,9 @@
 // components/ChatWindow.tsx
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Card, Spinner } from 'react-bootstrap';
 // Rimosso: import { type ChatDAO, type MessageDAO, type SendMessagePayload, sendChatMessage } from '../api/api';
-import { type ChatDAO, type MessageDAO } from '../api/api';
+import { type ChatDAO, type MessageDAO, getUsernameFromUserId } from '../api/api';
 import { type User } from '../models/models';
 import { useAppContext } from '../context/AppContext'; // Importiamo il Context
 
@@ -18,6 +18,7 @@ interface ChatWindowProps {
 const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, currentUser, onClose }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [messageText, setMessageText] = React.useState<string>("");
+    const [usernames, setUsernames] = useState<Record<number, string>>({}); // Cache per username
 
     // Otteniamo la funzione di invio messaggio dal Context
     const { sendMessage } = useAppContext();
@@ -42,6 +43,30 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
     // Scorri in fondo quando i messaggi cambiano
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
+
+    // Recupera username per sender_id non cachati
+    useEffect(() => {
+        const fetchUsernames = async () => {
+            const uniqueSenderIds = [...new Set(messages.map(m => m.sender_id))];
+            const missingIds = uniqueSenderIds.filter(id => !usernames[id]);
+
+            const promises = missingIds.map(async (id) => {
+                try {
+                    const username = await getUsernameFromUserId(id);
+                    setUsernames(prev => ({ ...prev, [id]: username }));
+                } catch (error) {
+                    console.error(`Failed to fetch username for ${id}:`, error);
+                    setUsernames(prev => ({ ...prev, [id]: `User ${id}` }));
+                }
+            });
+
+            await Promise.all(promises);
+        };
+
+        if (messages.length > 0) {
+            fetchUsernames();
+        }
     }, [messages]);
 
     if (!chat) {
@@ -85,11 +110,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                         {messages.map((message) => {
                             const isMyMessage = message.sender_id === currentUser.user_id; // Usiamo currentUser.id
 
-                            // Logica per il nome del mittente
-                            const senderLabel =
-                                message.sender_id === chat.user_id_1 ? chat.username_1 :
-                                    message.sender_id === chat.user_id_2 ? chat.username_2 :
-                                        'Group Member'; // Placeholder per gruppi o in caso di errore
+                            // Usa lo username dal cache
+                            const username = usernames[message.sender_id];
+                            const senderLabel = username && username !== 'loading' ? username : null;
 
                             return (
                                 <div
@@ -110,7 +133,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                                     <div className="message-content-wrapper">
                                         {/* Mostra il nome del mittente solo nei gruppi o se non è il mio messaggio */}
                                         {/* Aggiunto controllo per il tipo di chat come suggerito nel tuo codice originale */}
-                                        {!isMyMessage && chat.chat_type === 'GROUP' && (
+                                        {!isMyMessage && chat.chat_type === 'GROUP' && senderLabel && (
                                             <div className="sender-label" style={{ fontSize: '0.85em', color: '#555' }}>
                                                 {senderLabel}
                                             </div>

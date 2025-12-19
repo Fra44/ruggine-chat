@@ -109,7 +109,7 @@ export const getUsernameFromUserId = async (user_id: number): Promise<string> =>
         throw await toApiError(res);
     }
     const data = await res.json();
-    return data.username;
+    return data;  // The backend returns the username as a plain string
 }
 
 export const getUserIdByUsername = async (username: string): Promise<number> => {
