@@ -10,6 +10,7 @@ import { useAppContext } from "../context/AppContext";
 
 export default function RegisterPage() {
     const [username, setUsername] = useState("");
+    const [usernameError, setUsernameError] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
 
@@ -23,6 +24,13 @@ export default function RegisterPage() {
         e.preventDefault();
         if (!isFormValid) return;
         setLoading(true);
+
+        // Final validation: username must not contain spaces or semicolons
+        if (/[;\s]/.test(username)) {
+            setLoading(false);
+            setUsernameError('Username contiene caratteri non permessi (spazi o ";")');
+            return;
+        }
 
         try {
             const payload: RegisterUserPayload = {
@@ -81,11 +89,22 @@ export default function RegisterPage() {
                                                 type="text"
                                                 placeholder="your.username"
                                                 value={username}
-                                                onChange={(e) => setUsername(e.target.value)}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    // rimuovi caratteri proibiti: punti e virgola, virgole e whitespace
+                                                    const cleaned = val.replace(/[;,\s]+/g, "");
+                                                    if (cleaned !== val) {
+                                                        setUsernameError("Caratteri non permessi rimossi (spazi/;/,)");
+                                                    } else {
+                                                        setUsernameError("");
+                                                    }
+                                                    setUsername(cleaned);
+                                                }}
                                                 required
                                                 className="auth-input"
                                                 autoComplete="username"
                                             />
+                                            {usernameError && <div className="text-danger mt-1">{usernameError}</div>}
                                         </Form.Group>
                                     </motion.div>
 
