@@ -10,7 +10,7 @@ import { toast } from 'react-hot-toast';
 import InviteModal from '../components/InviteModal';
 
 import type { User } from '../models/models';
-import type { ChatDAO, MessageDAO, LoginUserPayload, LoginResponse, ServerWsMessage, WsEventType, InviteDAO } from '../api/api';
+import type { ChatDAO, MessageDAO, LoginUserPayload, LoginResponse, ServerWsMessage, InviteDAO } from '../api/api';
 import { loginUser, getChats, getChatMessages, sendChatMessage, getInvites, acceptInvite as acceptInviteApi, rejectInvite as rejectInviteApi, getUsernameFromUserId } from '../api/api';
 
 interface AppContextType {
@@ -161,11 +161,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         const provided = (newInvite as any).sender_username;
                         if (provided) {
                             toast(`Nuovo invito da ${provided}`, { icon: '📨' });
-                        } else {
+                        } else if (newInvite.sender_id != null) {
                             // async resolve and toast when available; fallback to id on error
                             getUsernameFromUserId(newInvite.sender_id)
                                 .then(name => toast(`Nuovo invito da ${name}`, { icon: '📨' }))
                                 .catch(() => toast(`Nuovo invito da ${newInvite.sender_id}`, { icon: '📨' }));
+                        } else {
+                            // sender_id is missing/null, show a generic fallback
+                            toast(`Nuovo invito da Sconosciuto`, { icon: '📨' });
                         }
                     }
                 } catch (err) {

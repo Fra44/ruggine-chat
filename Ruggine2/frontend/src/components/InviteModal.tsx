@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { useAppContext } from '../context/AppContext';
-import { getUsernameFromUserId, getChats } from '../api/api';
+import { getChats } from '../api/api';
 
 export default function InviteModal() {
     const { invites, acceptInvite, rejectInvite } = useAppContext();
