@@ -24,8 +24,7 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  /* Remove global centering to avoid layout shrinking of app containers */
   min-width: 320px;
   min-height: 100vh;
 }
@@ -65,4 +64,35 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+/* Custom chat scrollbar: minimal, rounded, visible on hover or when needed (overflow:auto) */
+.chat-messages-container {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent; /* thumb, track (hidden by default) */
+}
+
+.chat-messages-container:hover {
+  scrollbar-color: rgba(150,150,150,0.6) transparent; /* show thumb on hover */
+}
+
+/* WebKit browsers (Chrome, Edge, Safari) */
+.chat-messages-container::-webkit-scrollbar {
+  width: 10px;
+}
+.chat-messages-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-messages-container::-webkit-scrollbar-thumb {
+  background: transparent; /* hidden by default */
+  border-radius: 8px;
+}
+.chat-messages-container:hover::-webkit-scrollbar-thumb {
+  background: rgba(100,100,100,0.5);
+}
+
+/* Ensure content doesn't go under the scrollbar on some platforms */
+.chat-messages-container .messages-list {
+  padding-right: 6px;
 }
