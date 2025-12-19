@@ -55,7 +55,7 @@ export default function LoginPage() {
         // ... (JSX invariato)
         <Container fluid className="auth-container d-flex align-items-center justify-content-center">
             <Row className="w-100 justify-content-center">
-                <Col xs={12} sm={8} md={9} lg={6} xl={12}>
+                <Col xs={12} sm={8} md={9} lg={6} xl={5}>
                     <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
                         <Card className="auth-card">
                             <Card.Body>

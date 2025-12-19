@@ -190,7 +190,7 @@ export default function HomePage() {
                         <Modal.Body>
                             <Form onSubmit={handleCreateChat}>
                                 <Form.Group>
-                                    <Form.Label className="text-dark">Recipient Username</Form.Label>
+                                        <Form.Label className="text-dark">1 username = chat privata.<br/>1+ username = chat di gruppo (verrà richiesto il nome).</Form.Label>
                                     <Form.Control
                                         type="text"
                                         value={username}
