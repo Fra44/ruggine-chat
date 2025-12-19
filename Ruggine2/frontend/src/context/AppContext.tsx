@@ -11,7 +11,7 @@ import InviteModal from '../components/InviteModal';
 
 import type { User } from '../models/models';
 import type { ChatDAO, MessageDAO, LoginUserPayload, LoginResponse, ServerWsMessage, WsEventType, InviteDAO } from '../api/api';
-import { loginUser, getChats, getChatMessages, sendChatMessage, getInvites, acceptInvite as acceptInviteApi, rejectInvite as rejectInviteApi } from '../api/api';
+import { loginUser, getChats, getChatMessages, sendChatMessage, getInvites, acceptInvite as acceptInviteApi, rejectInvite as rejectInviteApi, getUsernameFromUserId } from '../api/api';
 
 interface AppContextType {
     user: User | null;
@@ -157,7 +157,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         return [newInvite, ...prev];
                     });
                     if (added) {
-                        toast(`Nuovo invito da utente ${newInvite.sender_id}`, { icon: '📨' });
+                        // Prefer server-provided username, otherwise try resolving it via API
+                        const provided = (newInvite as any).sender_username;
+                        if (provided) {
+                            toast(`Nuovo invito da ${provided}`, { icon: '📨' });
+                        } else {
+                            // async resolve and toast when available; fallback to id on error
+                            getUsernameFromUserId(newInvite.sender_id)
+                                .then(name => toast(`Nuovo invito da ${name}`, { icon: '📨' }))
+                                .catch(() => toast(`Nuovo invito da ${newInvite.sender_id}`, { icon: '📨' }));
+                        }
                     }
                 } catch (err) {
                     console.warn('Malformed NEW_INVITE payload', payload);
