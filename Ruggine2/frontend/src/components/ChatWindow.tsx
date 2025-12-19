@@ -19,13 +19,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [messageText, setMessageText] = React.useState<string>("");
     const [usernames, setUsernames] = useState<Record<number, string>>({}); // Cache per username
+    const [isSending, setIsSending] = useState(false); // Stato per disabilitare il bottone durante l'invio
 
     // Otteniamo la funzione di invio messaggio dal Context
     const { sendMessage } = useAppContext();
 
     const handleSendMessage = async () => {
-        if (!chat || messageText.trim() === "") return;
+        if (!chat || messageText.trim() === "" || isSending) return;
 
+        setIsSending(true);
         try {
             // Rimuoviamo la logica API locale e usiamo la funzione esposta dal Context
             // che si occuperà di chiamare la REST API e il WS (se implementato)
@@ -37,6 +39,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
         } catch (e) {
             console.error("Error sending message:", e);
             // Aggiungi un toast.error se necessario
+        } finally {
+            setIsSending(false);
         }
     }
 
@@ -166,7 +170,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                 <input
                     type="text"
                     placeholder="Type a message..."
-                    disabled={loading}
+                    disabled={loading || isSending}
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     onKeyDown={(e) => {
@@ -175,7 +179,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                     className="form-control message-input"
                 />
                 <button
-                    disabled={loading || messageText.trim() === ""}
+                    disabled={loading || messageText.trim() === "" || isSending}
                     className="btn btn-primary message-send-button"
                     onClick={handleSendMessage}
                 >
