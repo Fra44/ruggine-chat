@@ -2,7 +2,7 @@
 
 // Rimosso: import React, { useState, useEffect } from "react";
 import React, { useEffect, useState } from "react"; // Manteniamo React per JSX
-import { Container, Row, Col, Spinner, Button, Modal, Form } from "react-bootstrap";
+import { Container, Row, Spinner, Button, Modal, Form } from "react-bootstrap";
 // Rimosso: import { getChats, type ChatDAO, type MessageDAO, getChatMessages } from "../api/api";
 // Rimosso: import { type User } from "../models/models";
 import ChatList from "../components/ChatList";
@@ -82,12 +82,12 @@ export default function HomePage() {
     };
 
     return (
-        <Container fluid className="homepage-container">
-            <Row className="h-100">
+        <Container fluid className="homepage-container" style={{ marginLeft: '5%', marginRight: '5%', width: '90%', height: '90vh' }}>
+            <Row className="h-100" style={{ display: 'flex', height: '100%' }}>
                 {/* ------------------------------------- */}
-                {/* COLONNA SINISTRA: CHAT LIST (3/12 o 4/12) */}
+                {/* COLONNA SINISTRA: CHAT LIST (30% larghezza) */}
                 {/* ------------------------------------- */}
-                <Col xs={12} sm={4} lg={3} className="chatlist-sidebar">
+                <div style={{ width: '30%', height: '100%', flexShrink: 0, minWidth: 0 }} className="chatlist-sidebar">
                     <div className="d-flex justify-content-between align-items-center mt-3 mb-4">
                         <h4 className="auth-title" style={{ fontSize: '1.5rem', textAlign: 'center' }}>
                             Chats - {user ? user.username : ""}
@@ -154,12 +154,12 @@ export default function HomePage() {
                             search={search}
                         />
                     )}
-                </Col>
+                </div>
 
                 {/* ------------------------------------- */}
-                {/* COLONNA DESTRA: FINESTRA MESSAGGI (Spazio Rimanente) */}
+                {/* COLONNA DESTRA: FINESTRA MESSAGGI (60% larghezza) */}
                 {/* ------------------------------------- */}
-                <Col xs={12} sm={8} lg={9} className="chat-area-main p-0">
+                <div style={{ width: '60%', height: '100%', flexShrink: 0, minWidth: 0 }} className="chat-area-main p-0">
                     {user && (
                         <ChatWindow
                             chat={selectedChat}
@@ -170,7 +170,7 @@ export default function HomePage() {
                         // L'invio del messaggio sarà gestito da ChatWindow usando il Context
                         />
                     )}
-                </Col>
+                </div>
 
             </Row>
         </Container>
