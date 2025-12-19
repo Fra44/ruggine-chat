@@ -1,6 +1,6 @@
 use std::fmt;
 use actix_web::{
-    HttpResponse, Responder, body, error::ResponseError, get, http::{ StatusCode, header::ContentType }, post, put, web::{ Data, Json, Path }
+    HttpResponse, Responder, body, error::ResponseError, get, http::{ StatusCode, header::ContentType }, post, put, web::{ Data, Json, Path, Query }
 };
 use serde::{ Deserialize, Serialize };
 use crate::repository::args::{ CreateUser, LoginUser };
@@ -153,4 +153,33 @@ pub async fn get_user_id_by_username(username: Path<String>) -> impl Responder {
         Some(user) => Ok(HttpResponse::Ok().json(user.id)),
         None => Err(UserError::UserNotFound),
     }
+}
+
+/// Search users by prefix (protected)
+#[derive(Deserialize)]
+pub struct SearchQuery {
+    pub prefix: String,
+    pub limit: Option<i32>,
+}
+
+#[get("/search")] 
+pub async fn search_users_by_prefix(q: Query<SearchQuery>) -> impl Responder {
+    let prefix = q.prefix.clone();
+    let limit = q.limit.unwrap_or(5) as i64;
+    match crate::repository::users::search_usernames_by_prefix(&prefix, limit) {
+        Ok(list) => Ok(HttpResponse::Ok().json(list)),
+        Err(e) => {
+            log::error!("search_users_by_prefix error: {}", e);
+            Err(UserError::BadUserRequest)
+        }
+    }
+}
+
+/// Debug endpoint (public) - returns the Authorization header value and logs it.
+#[get("/search_debug")] 
+pub async fn search_users_debug(req: actix_web::HttpRequest, q: Query<SearchQuery>) -> impl Responder {
+    let auth_hdr = req.headers().get("authorization").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
+    let _ = &auth_hdr; // no debug logging
+    let resp = serde_json::json!({ "authorization": auth_hdr });
+    HttpResponse::Ok().json(resp)
 }

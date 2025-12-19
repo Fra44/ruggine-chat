@@ -11,7 +11,7 @@ import { useNavigate } from "react-router-dom"; // Mantenuto solo per navigate
 
 import { useAppContext } from "../context/AppContext"; // Importiamo il Context
 import type { ChatDAO } from "../api/api";
-import { createNewPrivateChat, createNewGroupChat, getChats, getUserIdByUsername, inviteUser } from "../api/api";
+import { createNewPrivateChat, createNewGroupChat, getChats, getUserIdByUsername, inviteUser, getUsersByPrefix } from "../api/api";
 
 // Rimosso: interface HomePageProps { user: User | null; }
 
@@ -53,9 +53,14 @@ export default function HomePage() {
     const [search, setSearch] = useState("");
     const [showModal, setShowModal] = useState(false);
     const [username, setUsername] = useState("");
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [activeSuggestion, setActiveSuggestion] = useState(0);
     const [groupName, setGroupName] = useState("");
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState("");
+    const debounceRef = React.useRef<number | null>(null);
+    const requestIdRef = React.useRef(0);
 
     // Funzione per creare una nuova chat privata
     const handleCreateChat = async (e?: React.FormEvent) => {
@@ -188,18 +193,99 @@ export default function HomePage() {
                             <Modal.Title className="text-dark">New Chat</Modal.Title>
                         </Modal.Header>
                         <Modal.Body>
-                            <Form onSubmit={handleCreateChat}>
-                                <Form.Group>
-                                        <Form.Label className="text-dark">1 username = chat privata.<br/>1+ username = chat di gruppo (verrà richiesto il nome).</Form.Label>
-                                    <Form.Control
-                                        type="text"
-                                        value={username}
-                                        onChange={e => setUsername(e.target.value)}
-                                        placeholder="Enter username"
-                                        disabled={creating}
-                                        className="text-dark"
-                                    />
-                                </Form.Group>
+                                        <Form onSubmit={handleCreateChat}>
+                                            <Form.Group>
+                                                    <Form.Label className="text-dark">1 username = chat privata.<br/>1+ username = chat di gruppo (verrà richiesto il nome).</Form.Label>
+                                                <div style={{ position: 'relative' }}>
+                                                    <Form.Control
+                                                        type="text"
+                                                        value={username}
+                                                        onChange={e => {
+                                                            const v = e.target.value;
+                                                            setUsername(v);
+                                                            // debounce suggestion fetch
+                                                            // debounce suggestion fetch
+                                                            if (debounceRef.current) window.clearTimeout(debounceRef.current);
+                                                            const m = /([^;,\s]+)\s*$/.exec(v);
+                                                            const token = m ? m[1] : '';
+                                                            if (token.length >= 1) {
+                                                                const reqId = ++requestIdRef.current;
+                                                                debounceRef.current = window.setTimeout(() => {
+                                                                    getUsersByPrefix(token, 5)
+                                                                        .then(list => {
+                                                                            if (requestIdRef.current === reqId) {
+                                                                                const filtered = list.filter(x => x.toLowerCase() !== token.toLowerCase());
+                                                                                const withoutSelf = filtered.filter(x => !(user && x.toLowerCase() === user.username.toLowerCase()));
+                                                                                setSuggestions(withoutSelf);
+                                                                                setShowSuggestions(true);
+                                                                                setActiveSuggestion(0);
+                                                                            }
+                                                                        })
+                                                                        .catch(() => {
+                                                                            if (requestIdRef.current === reqId) {
+                                                                                setSuggestions([]);
+                                                                                setShowSuggestions(false);
+                                                                            }
+                                                                        });
+                                                                }, 250);
+                                                            } else {
+                                                                setSuggestions([]);
+                                                                setShowSuggestions(false);
+                                                            }
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (showSuggestions && suggestions.length > 0) {
+                                                                if (e.key === 'ArrowDown') {
+                                                                    e.preventDefault();
+                                                                    setActiveSuggestion(i => Math.min(i + 1, suggestions.length - 1));
+                                                                    return;
+                                                                }
+                                                                if (e.key === 'ArrowUp') {
+                                                                    e.preventDefault();
+                                                                    setActiveSuggestion(i => Math.max(i - 1, 0));
+                                                                    return;
+                                                                }
+                                                                if (e.key === 'Enter' || e.key === 'Tab') {
+                                                                    e.preventDefault();
+                                                                    const chosen = suggestions[activeSuggestion];
+                                                                    if (chosen) {
+                                                                        // replace last token with chosen and append "; "
+                                                                        const m = /([^;,\s]+)\s*$/.exec(username);
+                                                                        let newVal = '';
+                                                                        if (m && typeof m.index === 'number') {
+                                                                            newVal = username.slice(0, m.index) + chosen + '; ';
+                                                                        } else {
+                                                                            newVal = chosen + '; ';
+                                                                        }
+                                                                        setUsername(newVal);
+                                                                        setShowSuggestions(false);
+                                                                        setSuggestions([]);
+                                                                    }
+                                                                    return;
+                                                                }
+                                                                if (e.key === 'Escape') {
+                                                                    setShowSuggestions(false);
+                                                                    setSuggestions([]);
+                                                                }
+                                                            }
+                                                        }}
+                                                        placeholder="Enter username"
+                                                        disabled={creating}
+                                                        className="text-dark"
+                                                    />
+                                                    {showSuggestions && suggestions.length > 0 && (
+                                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 2000, background: 'white', border: '1px solid #ddd', maxHeight: 160, overflowY: 'auto' }}>
+                                                            {suggestions.map((s, idx) => (
+                                                                <div key={s} onMouseDown={(ev) => { ev.preventDefault(); const m = /([^;,\s]+)\s*$/.exec(username); let newVal = ''; if (m && typeof m.index === 'number') { newVal = username.slice(0, m.index) + s + '; '; } else { newVal = s + '; '; } setUsername(newVal); setShowSuggestions(false); setSuggestions([]); }}
+                                                                    style={{ padding: '6px 8px', cursor: 'pointer', background: idx === activeSuggestion ? '#f0f8ff' : 'white' }}
+                                                                >
+                                                                    {s}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </Form.Group>
                                     {(() => {
                                         const partsPreview = username.split(/[;\s,]+/).map(s => s.trim()).filter(Boolean);
                                         if (partsPreview.length > 1) {

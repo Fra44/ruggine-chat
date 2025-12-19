@@ -35,13 +35,11 @@ export default function InviteModal() {
             // load sender name: prefer sender_username if provided in invite payload
             setLoadingSender(true);
             try {
-                if (mounted) {setSenderName(currentInvite.sender_username);}
-            } catch (err) {
-                console.error('InviteModal: failed to resolve sender name', err);
+                if (mounted) {setSenderName(currentInvite.sender_username);} 
+            } catch (_err) {
                 if (mounted) {
                     const fb = `Utente ${currentInvite.sender_id}`;
                     setSenderName(fb);
-                    console.debug('InviteModal: set fallback senderName', fb);
                 }
             } finally {
                 if (mounted) setLoadingSender(false);
@@ -57,7 +55,7 @@ export default function InviteModal() {
                     const found = chats.find(c => c.id === Number(currentInvite.chat_id));
                     if (mounted) setGroupName(found?.group_name ?? `Chat ${currentInvite.chat_id}`);
                 }
-            } catch (err) {
+            } catch (_err) {
                 if (mounted) setGroupName(`Chat ${currentInvite.chat_id}`);
             } finally {
                 if (mounted) setLoadingGroup(false);

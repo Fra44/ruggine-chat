@@ -128,6 +128,34 @@ export const getUserIdByUsername = async (username: string): Promise<number> => 
     return data;
 }
 
+/**
+ * Search users by prefix (returns array of usernames)
+ */
+export const getUsersByPrefix = async (prefix: string, limit = 5): Promise<string[]> => {
+    try {
+        const url = new URL(`${BASE_URL}/users/search`);
+        url.searchParams.append('prefix', prefix);
+        url.searchParams.append('limit', String(limit));
+        const res = await fetch(url.toString(), {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${getToken()}`
+            },
+        });
+
+        if (!res.ok) {
+            throw await toApiError(res);
+        }
+        const data = await res.json();
+        if (!Array.isArray(data)) throw new Error('Invalid response');
+        return data as string[];
+    } catch (error) {
+        console.error('Error searching users by prefix', error);
+        throw error;
+    }
+}
+
 // for the requests that require authentication, we will need to add the Authorization header with the token by using
 // the getToken() utility function defined above IN the headers :
 /*

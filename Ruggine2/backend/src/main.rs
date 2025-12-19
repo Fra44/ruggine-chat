@@ -112,11 +112,13 @@ async fn main() -> Result<()> {
                     ::scope("/api/users")
                     .service(api::users::register_user) // in api.ts
                     .service(api::users::login_user) // in api.ts
+                    .service(api::users::search_users_debug) // debug endpoint (public)
                     .service(
                         web::scope("")
                             .wrap(auth_middleware.clone())
-                            .service(api::users::get_user_id_by_username) // protected
-                            .service(api::users::get_username_from_id) 
+                                .service(api::users::get_user_id_by_username) // protected
+                                .service(api::users::search_users_by_prefix)
+                                .service(api::users::get_username_from_id)
                     )
             )
             .service(
