@@ -109,7 +109,7 @@ export const getUsernameFromUserId = async (user_id: number): Promise<string> =>
         throw await toApiError(res);
     }
     const data = await res.json();
-    return data.username;
+    return data;  // The backend returns the username as a plain string
 }
 
 export const getUserIdByUsername = async (username: string): Promise<number> => {
@@ -388,7 +388,7 @@ export interface InviteDAO {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertToInviteDAO(dto: any): InviteDAO | null {
-    if (typeof dto.id !== 'number' || typeof dto.chat_id !== 'number' || typeof dto.sender_id !== 'number' || typeof dto.receiver_id !== 'number' || typeof dto.accepted !== 'boolean' || typeof dto.sent_at !== 'string') {
+    if (typeof dto.id !== 'number' || typeof dto.chat_id !== 'number' || typeof dto.sender_id !== 'number' || typeof dto.receiver_id !== 'number' || (dto.accepted !== null && typeof dto.accepted !== 'boolean') || typeof dto.sent_at !== 'string') {
         console.warn("Not valid invite data : ", dto);
         return null;
     }

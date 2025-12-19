@@ -171,7 +171,7 @@ export default function HomePage() {
                         <input
                             type="text"
                             className="form-control"
-                            placeholder="Cerca chat..."
+                            placeholder="Search chat..."
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
@@ -179,23 +179,23 @@ export default function HomePage() {
                     {/* New chat button */}
                     <div className="mb-3 d-flex gap-2">
                         <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
-                            Nuova chat
+                            New chat
                         </Button>
                     </div>
                     {/* Modal per inserire username */}
                     <Modal show={showModal} onHide={() => setShowModal(false)} className="text-dark">
                         <Modal.Header closeButton>
-                            <Modal.Title className="text-dark">Nuova chat</Modal.Title>
+                            <Modal.Title className="text-dark">New Chat</Modal.Title>
                         </Modal.Header>
                         <Modal.Body>
                             <Form onSubmit={handleCreateChat}>
                                 <Form.Group>
-                                    <Form.Label className="text-dark">Username destinatario</Form.Label>
+                                    <Form.Label className="text-dark">Recipient Username</Form.Label>
                                     <Form.Control
                                         type="text"
                                         value={username}
                                         onChange={e => setUsername(e.target.value)}
-                                        placeholder="Inserisci username"
+                                        placeholder="Enter username"
                                         disabled={creating}
                                         className="text-dark"
                                     />
@@ -228,9 +228,9 @@ export default function HomePage() {
                             </Button>
                                 <Button variant="primary" onClick={handleCreateChat} disabled={creating || !username.trim() || (username.split(/[;\s,]+/).map(s=>s.trim()).filter(Boolean).length>1 && !groupName.trim())}>
                                 {(() => {
-                                    if (creating) return "Creazione...";
+                                    if (creating) return "Creating...";
                                     const parts = username.split(/[;\s]+/).map(s => s.trim()).filter(Boolean);
-                                    return parts.length > 1 ? "Crea chat di gruppo" : "Crea chat privata";
+                                    return parts.length > 1 ? "Create Group Chat" : "Create Private Chat";
                                 })()}
                             </Button>
                         </Modal.Footer>

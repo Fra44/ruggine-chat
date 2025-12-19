@@ -147,8 +147,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             case 'NEW_INVITE':
                 try {
                     const newInvite = payload as InviteDAO;
-                    setInvites(prev => [newInvite, ...prev]);
-                    toast(`Nuovo invito da utente ${newInvite.sender_id}`, { icon: '📨' });
+                    let added = false;
+                    setInvites(prev => {
+                        // Check if invite already exists
+                        if (prev.some(inv => inv.id === newInvite.id)) {
+                            return prev; // Already exists, no change
+                        }
+                        added = true;
+                        return [newInvite, ...prev];
+                    });
+                    if (added) {
+                        toast(`Nuovo invito da utente ${newInvite.sender_id}`, { icon: '📨' });
+                    }
                 } catch (err) {
                     console.warn('Malformed NEW_INVITE payload', payload);
                 }
@@ -191,7 +201,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!user) return;
         try {
             const fetched = await getInvites();
-            setInvites(fetched);
+            setInvites(prev => {
+                // Merge without duplicates
+                const existingIds = new Set(prev.map(inv => inv.id));
+                const newInvites = fetched.filter(inv => !existingIds.has(inv.id));
+                return [...prev, ...newInvites];
+            });
         } catch (err: any) {
             console.warn('Failed to fetch invites', err);
         }
