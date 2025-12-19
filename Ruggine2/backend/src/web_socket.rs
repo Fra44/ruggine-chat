@@ -64,6 +64,31 @@ impl Actor for WsConn {
         }
 
         self.addr.lock().unwrap().connect(self.id, ctx.address().recipient());
+
+        // After connecting, try to deliver any pending invites that were created while the user
+        // was offline. This fetches invites from the repository and sends a NEW_INVITE WS message
+        // to the connected user for each pending invite. This ensures clients that connect
+        // after an invite was created still receive the notification.
+        match crate::repository::invites::get_invites_for_user(self.id) {
+            Ok(pending) => {
+                for inv in pending {
+                    let invite_dto = crate::model::invites::map_invite_to_dto(inv);
+                    let msg = crate::web_socket::ServerWsMessage {
+                        event_type: crate::web_socket::WsEventType::NewInvite,
+                        payload: invite_dto,
+                    };
+                    let json = serde_json::to_string(&msg).unwrap_or_else(|e| {
+                        log::error!("Failed to serialize invite DTO: {}", e);
+                        "{}".to_string()
+                    });
+                    // send only to this connected user
+                    self.addr.lock().unwrap().send_to_users(&[self.id], &json);
+                }
+            }
+            Err(e) => {
+                log::warn!("Failed to fetch pending invites for user {}: {}", self.id, e);
+            }
+        }
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> actix::Running {

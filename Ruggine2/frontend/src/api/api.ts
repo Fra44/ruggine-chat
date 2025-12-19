@@ -426,7 +426,7 @@ export const inviteUser = async (receiver_id: number, chat_id: number): Promise<
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Bearer": `Bearer ${getToken()}`
+                "Authorization": `Bearer ${getToken()}`
             },
             body: JSON.stringify({ chat_id: chat_id, receiver_id: receiver_id }),
         });
@@ -480,7 +480,7 @@ export const acceptInvite = async (invite_id: number): Promise<number> => {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
-                "Bearer": `Bearer ${getToken()}`
+                "Authorization": `Bearer ${getToken()}`
             },
         });
 
@@ -509,7 +509,7 @@ export const rejectInvite = async (invite_id: number): Promise<void> => {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
-                "Bearer": `Bearer ${getToken()}`
+                "Authorization": `Bearer ${getToken()}`
             },
         });
 

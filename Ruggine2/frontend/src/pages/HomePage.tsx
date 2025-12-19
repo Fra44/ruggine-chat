@@ -11,7 +11,7 @@ import { useNavigate } from "react-router"; // Mantenuto solo per navigate
 
 import { useAppContext } from "../context/AppContext"; // Importiamo il Context
 import type { ChatDAO } from "../api/api";
-import { createNewPrivateChat, createNewGroupChat, getChats, getUserIdByUsername } from "../api/api";
+import { createNewPrivateChat, createNewGroupChat, getChats, getUserIdByUsername, inviteUser } from "../api/api";
 
 // Rimosso: interface HomePageProps { user: User | null; }
 
@@ -62,19 +62,51 @@ export default function HomePage() {
         setError("");
         setCreating(true);
         try {
-            if (!username.trim()) {
+            const raw = username.trim();
+            if (!raw) {
                 setError("Inserisci un username valido");
                 setCreating(false);
                 return;
             }
-            const otherUserId = await getUserIdByUsername(username.trim());
-            const newChat = await createNewPrivateChat(otherUserId);
-            // Aggiorna la lista delle chat dopo la creazione
-            const updatedChats = await getChats();
-            setChats(updatedChats);
-            setShowModal(false);
-            setUsername("");
-            setSelectedChat(newChat);
+
+            // split usernames by semicolon, comma or whitespace
+            const parts = raw.split(/[;,\s]+/).map(s => s.trim()).filter(Boolean);
+
+            if (parts.length === 1) {
+                // private chat
+                const otherUserId = await getUserIdByUsername(parts[0]);
+                const newChat = await createNewPrivateChat(otherUserId);
+                const updatedChats = await getChats();
+                setChats(updatedChats);
+                setShowModal(false);
+                setUsername("");
+                setSelectedChat(newChat);
+            } else {
+                // group chat: create group then invite users
+                const groupName = parts.join(", ");
+                const newGroupId = await createNewGroupChat(groupName);
+
+                // try inviting each username; collect failures but continue
+                const inviteErrors: string[] = [];
+                for (const name of parts) {
+                    try {
+                        const uid = await getUserIdByUsername(name);
+                        await inviteUser(uid, newGroupId);
+                    } catch (err) {
+                        inviteErrors.push(name);
+                    }
+                }
+
+                const updatedChats = await getChats();
+                setChats(updatedChats);
+                const created = updatedChats.find(c => c.id === newGroupId) ?? null;
+                setShowModal(false);
+                setUsername("");
+                if (created) setSelectedChat(created);
+                if (inviteErrors.length > 0) {
+                    setError(`Non è stato possibile invitare: ${inviteErrors.join(", ")}`);
+                }
+            }
         } catch (e) {
             setError("Errore nella creazione della chat: utente non trovato o chat già esistente");
         } finally {

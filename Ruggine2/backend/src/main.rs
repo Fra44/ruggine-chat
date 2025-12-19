@@ -116,8 +116,8 @@ async fn main() -> Result<()> {
                         web::scope("")
                             .wrap(auth_middleware.clone())
                             .service(api::users::get_user_id_by_username) // protected
+                            .service(api::users::get_username_from_id) 
                     )
-                // .service(api::users::get_username_from_id)  // NOT NEEDED ANYMORE
             )
             .service(
                 web

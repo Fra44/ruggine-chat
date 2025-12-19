@@ -7,10 +7,11 @@ import React, {
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import InviteModal from '../components/InviteModal';
 
 import type { User } from '../models/models';
-import type { ChatDAO, MessageDAO, LoginUserPayload, LoginResponse, ServerWsMessage, WsEventType } from '../api/api';
-import { loginUser, getChats, getChatMessages, sendChatMessage } from '../api/api';
+import type { ChatDAO, MessageDAO, LoginUserPayload, LoginResponse, ServerWsMessage, WsEventType, InviteDAO } from '../api/api';
+import { loginUser, getChats, getChatMessages, sendChatMessage, getInvites, acceptInvite as acceptInviteApi, rejectInvite as rejectInviteApi } from '../api/api';
 
 interface AppContextType {
     user: User | null;
@@ -19,6 +20,7 @@ interface AppContextType {
     messages: MessageDAO[];
     loadingChats: boolean;
     loadingMessages: boolean;
+    invites: InviteDAO[];
 
     // Azioni esposte
     login: (payload: LoginUserPayload) => Promise<LoginResponse>;
@@ -27,6 +29,9 @@ interface AppContextType {
     sendMessage: (chatId: number, content: string) => Promise<void>;
     fetchMessages: (chatId: number) => Promise<void>;
     setChats: React.Dispatch<React.SetStateAction<ChatDAO[]>>;
+    fetchInvites: () => Promise<void>;
+    acceptInvite: (invite_id: number) => Promise<void>;
+    rejectInvite: (invite_id: number) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -39,11 +44,10 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
  * Hook customizzato per gestire la logica di connessione/riconnessione WebSocket.
  * Non gestisce lo stato dell'app, ma solo il flusso di dati WS.
  */
-const useWebSocket = (handleWsMessage: (msg: ServerWsMessage<any>) => void) => {
+const useWebSocket = (handleWsMessage: (msg: ServerWsMessage<any>) => void, token: string | null) => {
     const [socket, setSocket] = useState<WebSocket | null>(null);
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
         if (!token) return;
         // URL of the WebSocket "endpoint"
         const WS_URL = `ws://localhost:8080/ws/?token=${token}`;
@@ -71,7 +75,7 @@ const useWebSocket = (handleWsMessage: (msg: ServerWsMessage<any>) => void) => {
             ws.close();
         };
 
-    }, [handleWsMessage]);
+    }, [handleWsMessage, token]);
 
     return socket;
 };
@@ -88,6 +92,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [chats, setChats] = useState<ChatDAO[]>([]);
     const [selectedChat, setSelectedChat] = useState<ChatDAO | null>(null);
     const [messages, setMessages] = useState<MessageDAO[]>([]);
+    const [invites, setInvites] = useState<InviteDAO[]>([]);
 
     // STATI DI CARICAMENTO
     const [loadingChats, setLoadingChats] = useState(false);
@@ -139,6 +144,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 toast.success("You have been added to a new chat!");
                 break;
 
+            case 'NEW_INVITE':
+                try {
+                    const newInvite = payload as InviteDAO;
+                    setInvites(prev => [newInvite, ...prev]);
+                    toast(`Nuovo invito da utente ${newInvite.sender_id}`, { icon: '📨' });
+                } catch (err) {
+                    console.warn('Malformed NEW_INVITE payload', payload);
+                }
+                break;
+
             case 'CHAT_UPDATED':
                 // Logica per gestire altri aggiornamenti, es. un messaggio letto
                 // (Non implementato in dettaglio ma la struttura è qui)
@@ -149,8 +164,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }, [selectedChat, chats]);
 
-    // Avvia la connessione WebSocket
-    useWebSocket(handleWsMessage);
+    // Avvia la connessione WebSocket (ricrea la connessione quando cambia il token)
+    const storedToken = localStorage.getItem('token');
+    useWebSocket(handleWsMessage, storedToken);
 
     // Caricamento chat iniziali
     const loadInitialChats = useCallback(async () => {
@@ -169,6 +185,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setLoadingChats(false);
         }
     }, [user]);
+
+    // Carica gli inviti per l'utente
+    const fetchInvites = useCallback(async () => {
+        if (!user) return;
+        try {
+            const fetched = await getInvites();
+            setInvites(fetched);
+        } catch (err: any) {
+            console.warn('Failed to fetch invites', err);
+        }
+    }, [user]);
+
+    const handleAcceptInvite = useCallback(async (invite_id: number) => {
+        try {
+            const chatId = await acceptInviteApi(invite_id);
+            // remove invite from list
+            setInvites(prev => prev.filter(inv => inv.id !== invite_id));
+            // refresh chats and select the created chat
+            const updatedChats = await getChats();
+            setChats(updatedChats);
+            const created = updatedChats.find(c => c.id === chatId) ?? null;
+            if (created) setSelectedChat(created);
+            toast.success('Invito accettato');
+        } catch (err: any) {
+            toast.error(err?.message || 'Errore accettando invito');
+            throw err;
+        }
+    }, []);
+
+    const handleRejectInvite = useCallback(async (invite_id: number) => {
+        try {
+            await rejectInviteApi(invite_id);
+            setInvites(prev => prev.filter(inv => inv.id !== invite_id));
+            toast('Invito rifiutato');
+        } catch (err: any) {
+            toast.error(err?.message || 'Errore rifiutando invito');
+            throw err;
+        }
+    }, []);
 
     // Caricamento messaggi per la chat selezionata
     const fetchMessages = useCallback(async (chatId: number) => {
@@ -234,6 +289,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }, [user, loadInitialChats]);
 
+    useEffect(() => {
+        if (user) fetchInvites();
+    }, [user, fetchInvites]);
+
 
     // 3. Funzione di Login
     const login = async (payload: LoginUserPayload): Promise<LoginResponse> => {
@@ -294,6 +353,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         messages,
         loadingChats,
         loadingMessages,
+        invites,
 
         login,
         logout,
@@ -301,11 +361,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         sendMessage: handleSendMessage,
         fetchMessages,
         setChats,
+        fetchInvites,
+        acceptInvite: handleAcceptInvite,
+        rejectInvite: handleRejectInvite,
     };
 
     return (
         <AppContext.Provider value={contextValue}>
             {children}
+            {user && <InviteModal />}
         </AppContext.Provider>
     );
 };
