@@ -12,9 +12,10 @@ interface ChatWindowProps {
     messages: MessageDAO[];
     loading: boolean;
     currentUser: User; // Rimosso se provenisse dal Context, ma mantenuto per chiarezza di responsabilità
+    onClose: () => void;
 }
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, currentUser }) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, currentUser, onClose }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const [messageText, setMessageText] = React.useState<string>("");
 
@@ -68,10 +69,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
 
     // ... (resto del codice JSX invariato)
     return (
-        <Card className="chat-window-card h-100">
-            <Card.Header className="chat-window-header">
-                <h3>{getChatName()}</h3>
-            </Card.Header>
+        <div className="position-relative h-100">
+            <button type="button" className="btn-close position-absolute top-0 end-0 m-2" onClick={onClose} aria-label="Chiudi chat" style={{ zIndex: 10 }}></button>
+            <Card className="chat-window-card h-100">
+                <Card.Header className="chat-window-header">
+                    <h3>{getChatName()}</h3>
+                </Card.Header>
 
             <Card.Body className="chat-messages-container">
                 {loading ? (
@@ -136,6 +139,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                 </button>
             </Card.Footer>
         </Card>
+        </div>
     );
 };
 

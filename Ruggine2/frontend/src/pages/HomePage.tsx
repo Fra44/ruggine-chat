@@ -166,6 +166,7 @@ export default function HomePage() {
                             messages={messages}
                             loading={loadingMessages}
                             currentUser={user}
+                            onClose={() => setSelectedChat(null)}
                         // L'invio del messaggio sarà gestito da ChatWindow usando il Context
                         />
                     )}
