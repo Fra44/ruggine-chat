@@ -55,6 +55,7 @@ export default function HomePage() {
     const [username, setUsername] = useState("");
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState("");
+
     // Funzione per creare una nuova chat privata
     const handleCreateChat = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -113,20 +114,21 @@ export default function HomePage() {
                         </Button>
                     </div>
                     {/* Modal per inserire username */}
-                    <Modal show={showModal} onHide={() => setShowModal(false)}>
+                    <Modal show={showModal} onHide={() => setShowModal(false)} className="text-dark">
                         <Modal.Header closeButton>
-                            <Modal.Title>Nuova chat privata</Modal.Title>
+                            <Modal.Title className="text-dark">Nuova chat privata</Modal.Title>
                         </Modal.Header>
                         <Modal.Body>
                             <Form onSubmit={handleCreateChat}>
                                 <Form.Group>
-                                    <Form.Label>Username destinatario</Form.Label>
+                                    <Form.Label className="text-dark">Username destinatario</Form.Label>
                                     <Form.Control
                                         type="text"
                                         value={username}
                                         onChange={e => setUsername(e.target.value)}
                                         placeholder="Inserisci username"
                                         disabled={creating}
+                                        className="text-dark"
                                     />
                                 </Form.Group>
                                 {error && <div className="text-danger mt-2">{error}</div>}
@@ -136,8 +138,12 @@ export default function HomePage() {
                             <Button variant="secondary" onClick={() => setShowModal(false)} disabled={creating}>
                                 Annulla
                             </Button>
-                            <Button variant="primary" onClick={handleCreateChat} disabled={creating || !username}>
-                                {creating ? "Creazione..." : "Crea"}
+                            <Button variant="primary" onClick={handleCreateChat} disabled={creating || !username.trim()}>
+                                {(() => {
+                                    if (creating) return "Creazione...";
+                                    const parts = username.split(/[;\s]+/).map(s => s.trim()).filter(Boolean);
+                                    return parts.length > 1 ? "Crea chat di gruppo" : "Crea chat privata";
+                                })()}
                             </Button>
                         </Modal.Footer>
                     </Modal>
