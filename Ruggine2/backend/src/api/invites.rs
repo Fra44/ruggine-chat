@@ -77,25 +77,55 @@ pub async fn invite_user(
 
             // after the actual modifies in the DB, we add logic to notify the user through WebSocket about the new state :
             if let Ok(invite_id) = &create_invite_res {
-                // we notify the user through WebSocket about the new invite
+                // we retrieve the created invite row and map it to DTO (which includes resolved names)
                 let chat_server = &chat_server_data.chat_server;
                 let chat_server_locked = chat_server.lock().unwrap();
                 let event_type = crate::web_socket::WsEventType::NewInvite;
-                let msg = crate::web_socket::ServerWsMessage {
-                    event_type,
-                    payload: serde_json::json!({
-                        "id": invite_id,
-                        "chat_id": chat_id_,
-                        "sender_id": user_id_sender,
-                        "receiver_id": user_id_receiver,
-                        "accepted": null,
-                        "sent_at": chrono::Utc::now().to_rfc3339(),
-                    }),
-                };
-                chat_server_locked.send_to_users(
-                    &[user_id_receiver],
-                    &serde_json::to_string(&msg).unwrap()
-                );
+
+                // attempt to fetch the freshly created invite using a direct lookup by id
+                let mut payload_json = None;
+                match crate::repository::invites::get_invite_by_id(*invite_id) {
+                    Ok(Some(inv)) => {
+                        let invite_dto = crate::model::invites::map_invite_to_dto(inv);
+                        let msg = crate::web_socket::ServerWsMessage {
+                            event_type: event_type.clone(),
+                            payload: invite_dto,
+                        };
+                        payload_json = Some(serde_json::to_string(&msg).unwrap_or_else(|e| {
+                            log::error!("Failed to serialize invite DTO: {}", e);
+                            "{}".to_string()
+                        }));
+                    }
+                    Ok(None) => {
+                        log::warn!("Invite {} created but not found by id for user {}", invite_id, user_id_receiver);
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to fetch invite {}: {}", invite_id, e);
+                    }
+                }
+
+                // fallback: if DTO creation/lookup failed, still send a minimal payload with IDs so client is notified
+                if payload_json.is_none() {
+                    let fallback_msg = crate::web_socket::ServerWsMessage {
+                        event_type: event_type.clone(),
+                        payload: serde_json::json!({
+                            "id": invite_id,
+                            "chat_id": chat_id_,
+                            "sender_id": user_id_sender,
+                            "receiver_id": user_id_receiver,
+                            "accepted": null,
+                            "sent_at": chrono::Utc::now().to_rfc3339(),
+                        }),
+                    };
+                    payload_json = Some(serde_json::to_string(&fallback_msg).unwrap_or_else(|e| {
+                        log::error!("Failed to serialize fallback invite payload: {}", e);
+                        "{}".to_string()
+                    }));
+                }
+
+                if let Some(json) = payload_json {
+                    chat_server_locked.send_to_users(&[user_id_receiver], &json);
+                }
             }
 
             match create_invite_res {

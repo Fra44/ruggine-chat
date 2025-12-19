@@ -171,3 +171,20 @@ pub fn get_invites_for_user(target_user_id: i32) -> Result<Vec<Invite>, String> 
         Ok(results) => Ok(results),
     }
 }
+
+/// Repository level function that retrieves a single invite by its ID.
+/// Returns Ok(Some(invite)) if found, Ok(None) if not found, Err(String) on DB error.
+pub fn get_invite_by_id(invite_id_param: i32) -> Result<Option<Invite>, String> {
+    use crate::schema::invites::dsl::*;
+
+    let mut connection = establish_connection();
+
+    match invites
+        .filter(id.eq(invite_id_param))
+        .first::<Invite>(&mut connection)
+        .optional()
+    {
+        Ok(inv_opt) => Ok(inv_opt),
+        Err(e) => Err(format!("Error loading invite by id {}: {}", invite_id_param, e)),
+    }
+}

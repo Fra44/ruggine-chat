@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { useAppContext } from '../context/AppContext';
-import { getUsernameFromUserId } from '../api/api';
+import { getUsernameFromUserId, getChats } from '../api/api';
 
 export default function InviteModal() {
     const { invites, acceptInvite, rejectInvite } = useAppContext();
     const [show, setShow] = useState(false);
     const [currentInvite, setCurrentInvite] = useState<any | null>(null);
     const [senderName, setSenderName] = useState<string | null>(null);
+    const [groupName, setGroupName] = useState<string | null>(null);
     const [loadingSender, setLoadingSender] = useState(false);
+    const [loadingGroup, setLoadingGroup] = useState(false);
     const [processing, setProcessing] = useState(false);
 
     useEffect(() => {
@@ -23,22 +25,72 @@ export default function InviteModal() {
 
     useEffect(() => {
         let mounted = true;
-        const loadSender = async () => {
+        const loadInfo = async () => {
             if (!currentInvite) {
                 setSenderName(null);
+                setGroupName(null);
                 return;
             }
+
+            // load sender name: prefer sender_username if provided in invite payload
             setLoadingSender(true);
             try {
-                const name = await getUsernameFromUserId(currentInvite.sender_id);
-                if (mounted) setSenderName(name);
+                if (mounted) {setSenderName(currentInvite.sender_username);}
             } catch (err) {
-                if (mounted) setSenderName(`Utente ${currentInvite.sender_id}`);
+                console.error('InviteModal: failed to resolve sender name', err);
+                if (mounted) {
+                    const fb = `Utente ${currentInvite.sender_id}`;
+                    setSenderName(fb);
+                    console.debug('InviteModal: set fallback senderName', fb);
+                }
             } finally {
                 if (mounted) setLoadingSender(false);
             }
+
+            // load group name: prefer group_name if provided in invite payload
+            setLoadingGroup(true);
+            try {
+                if (currentInvite.group_name) {
+                    if (mounted) setGroupName(currentInvite.group_name);
+                } else {
+                    const chats = await getChats();
+                    const found = chats.find(c => c.id === Number(currentInvite.chat_id));
+                    if (mounted) setGroupName(found?.group_name ?? `Chat ${currentInvite.chat_id}`);
+                }
+            } catch (err) {
+                if (mounted) setGroupName(`Chat ${currentInvite.chat_id}`);
+            } finally {
+                if (mounted) setLoadingGroup(false);
+            }
         };
-        loadSender();
+        loadInfo();
+        return () => { mounted = false; };
+    }, [currentInvite]);
+
+    useEffect(() => {
+        let mounted = true;
+        const loadGroup = async () => {
+            if (!currentInvite) {
+                setGroupName(null);
+                return;
+            }
+            setLoadingGroup(true);
+            try {
+                if (currentInvite.group_name) {
+                    if (mounted) setGroupName(currentInvite.group_name);
+                } else {
+                    const chats = await getChats();
+                    const found = chats.find(c => c.id === Number(currentInvite.chat_id));
+                    if (mounted) setGroupName(found?.group_name ?? `Chat ${currentInvite.chat_id}`);
+                }
+            } catch (err) {
+                console.error('InviteModal: failed to resolve group name', err);
+                if (mounted) setGroupName(`Chat ${currentInvite.chat_id}`);
+            } finally {
+                if (mounted) setLoadingGroup(false);
+            }
+        };
+        loadGroup();
         return () => { mounted = false; };
     }, [currentInvite]);
 
@@ -77,8 +129,12 @@ export default function InviteModal() {
                     <strong>Da:</strong>{' '}
                     {loadingSender ? <Spinner animation="border" size="sm" /> : (senderName || `Utente ${currentInvite.sender_id}`)}
                 </div>
+                <div className="mt-2">
+                    <strong>Gruppo:</strong>{' '}
+                    {loadingGroup ? <Spinner animation="border" size="sm" /> : (groupName || `Chat ${currentInvite.chat_id}`)}
+                </div>
                 <div className="mt-3">
-                    <p>Sei stato invitato a partecipare alla chat con id <strong>{currentInvite.chat_id}</strong>.</p>
+                    <p>Sei stato invitato da {senderName || `Utente ${currentInvite.sender_id}`} a partecipare al gruppo {groupName || `Chat ${currentInvite.chat_id}` }.</p>
                     <p>Accetta per unirti alla chat o rifiuta per ignorare l'invito.</p>
                 </div>
             </Modal.Body>

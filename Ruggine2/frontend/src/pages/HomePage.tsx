@@ -7,7 +7,7 @@ import { Container, Row, Spinner, Button, Modal, Form } from "react-bootstrap";
 // Rimosso: import { type User } from "../models/models";
 import ChatList from "../components/ChatList";
 import ChatWindow from "../components/ChatWindow";
-import { useNavigate } from "react-router"; // Mantenuto solo per navigate
+import { useNavigate } from "react-router-dom"; // Mantenuto solo per navigate
 
 import { useAppContext } from "../context/AppContext"; // Importiamo il Context
 import type { ChatDAO } from "../api/api";
@@ -53,6 +53,7 @@ export default function HomePage() {
     const [search, setSearch] = useState("");
     const [showModal, setShowModal] = useState(false);
     const [username, setUsername] = useState("");
+    const [groupName, setGroupName] = useState("");
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState("");
 
@@ -72,23 +73,58 @@ export default function HomePage() {
             // split usernames by semicolon, comma or whitespace
             const parts = raw.split(/[;,\s]+/).map(s => s.trim()).filter(Boolean);
 
-            if (parts.length === 1) {
+            // validation: no self-invite and no duplicates (case-insensitive)
+            if (!user) {
+                setError("Utente non autenticato");
+                setCreating(false);
+                return;
+            }
+            const lowerSelf = user.username.toLowerCase();
+            const seen = new Set<string>();
+            const uniqueParts: string[] = [];
+            const dupes: string[] = [];
+            for (const p of parts) {
+                const lp = p.toLowerCase();
+                if (lp === lowerSelf) {
+                    setError("Non puoi invitare te stesso nella chat.");
+                    setCreating(false);
+                    return;
+                }
+                if (seen.has(lp)) {
+                    dupes.push(p);
+                } else {
+                    seen.add(lp);
+                    uniqueParts.push(p);
+                }
+            }
+            if (dupes.length > 0) {
+                setError(`Hai inserito utenti duplicati: ${[...new Set(dupes)].join(', ')}`);
+                setCreating(false);
+                return;
+            }
+
+            if (uniqueParts.length === 1) {
                 // private chat
-                const otherUserId = await getUserIdByUsername(parts[0]);
+                const otherUserId = await getUserIdByUsername(uniqueParts[0]);
                 const newChat = await createNewPrivateChat(otherUserId);
                 const updatedChats = await getChats();
                 setChats(updatedChats);
                 setShowModal(false);
                 setUsername("");
+                setGroupName("");
                 setSelectedChat(newChat);
             } else {
                 // group chat: create group then invite users
-                const groupName = parts.join(", ");
-                const newGroupId = await createNewGroupChat(groupName);
+                if (!groupName.trim()) {
+                    setError("Inserisci un nome per il gruppo");
+                    setCreating(false);
+                    return;
+                }
+                const newGroupId = await createNewGroupChat(groupName.trim());
 
                 // try inviting each username; collect failures but continue
                 const inviteErrors: string[] = [];
-                for (const name of parts) {
+                for (const name of uniqueParts) {
                     try {
                         const uid = await getUserIdByUsername(name);
                         await inviteUser(uid, newGroupId);
@@ -102,6 +138,7 @@ export default function HomePage() {
                 const created = updatedChats.find(c => c.id === newGroupId) ?? null;
                 setShowModal(false);
                 setUsername("");
+                setGroupName("");
                 if (created) setSelectedChat(created);
                 if (inviteErrors.length > 0) {
                     setError(`Non è stato possibile invitare: ${inviteErrors.join(", ")}`);
@@ -148,7 +185,7 @@ export default function HomePage() {
                     {/* Modal per inserire username */}
                     <Modal show={showModal} onHide={() => setShowModal(false)} className="text-dark">
                         <Modal.Header closeButton>
-                            <Modal.Title className="text-dark">Nuova chat privata</Modal.Title>
+                            <Modal.Title className="text-dark">Nuova chat</Modal.Title>
                         </Modal.Header>
                         <Modal.Body>
                             <Form onSubmit={handleCreateChat}>
@@ -163,6 +200,25 @@ export default function HomePage() {
                                         className="text-dark"
                                     />
                                 </Form.Group>
+                                    {(() => {
+                                        const partsPreview = username.split(/[;\s,]+/).map(s => s.trim()).filter(Boolean);
+                                        if (partsPreview.length > 1) {
+                                            return (
+                                                <Form.Group className="mt-3">
+                                                    <Form.Label className="text-dark">Nome gruppo</Form.Label>
+                                                    <Form.Control
+                                                        type="text"
+                                                        value={groupName}
+                                                        onChange={e => setGroupName(e.target.value)}
+                                                        placeholder="Inserisci il nome del gruppo"
+                                                        disabled={creating}
+                                                        className="text-dark"
+                                                    />
+                                                </Form.Group>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
                                 {error && <div className="text-danger mt-2">{error}</div>}
                             </Form>
                         </Modal.Body>
@@ -170,7 +226,7 @@ export default function HomePage() {
                             <Button variant="secondary" onClick={() => setShowModal(false)} disabled={creating}>
                                 Annulla
                             </Button>
-                            <Button variant="primary" onClick={handleCreateChat} disabled={creating || !username.trim()}>
+                                <Button variant="primary" onClick={handleCreateChat} disabled={creating || !username.trim() || (username.split(/[;\s,]+/).map(s=>s.trim()).filter(Boolean).length>1 && !groupName.trim())}>
                                 {(() => {
                                     if (creating) return "Creazione...";
                                     const parts = username.split(/[;\s]+/).map(s => s.trim()).filter(Boolean);

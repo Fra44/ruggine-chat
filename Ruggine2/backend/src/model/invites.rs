@@ -19,11 +19,15 @@ pub struct InviteDTO {
     pub receiver_id: Option<i32>,
     pub accepted: Option<bool>, // can only be NULL (pending), TRUE (accepted) or FALSE (rejected)
     pub sent_at: String,
+    // optional human-friendly fields filled when possible
+    pub sender_username: Option<String>,
+    pub group_name: Option<String>,
 }
 
 impl From<crate::repository::invites::Invite> for InviteDTO {
     fn from(invite: crate::repository::invites::Invite) -> Self {
-        InviteDTO {
+        // base dto
+        let mut dto = InviteDTO {
             id: invite.id,
             chat_id: invite.chat_id,
             sender_id: invite.sender_id,
@@ -33,7 +37,25 @@ impl From<crate::repository::invites::Invite> for InviteDTO {
                 Some(dt) => dt.format("%Y-%m-%d %H:%M:%S").to_string(),
                 None => "N/A".to_string(),
             },
+            sender_username: None,
+            group_name: None,
+        };
+
+        // try to resolve sender username
+        if let Some(sid) = dto.sender_id {
+            if let Some(user) = crate::repository::users::find_user_by_id(sid) {
+                dto.sender_username = Some(user.username);
+            }
         }
+
+        // try to resolve group name from chat
+        if let Some(cid) = dto.chat_id {
+            if let Some(chat) = crate::repository::chats::get_chat_by_id(cid) {
+                dto.group_name = chat.group_name;
+            }
+        }
+
+        dto
     }
 }
 
