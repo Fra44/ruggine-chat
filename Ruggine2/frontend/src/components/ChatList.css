@@ -1,34 +1,86 @@
 .chat-list-item {
-  position: relative;
-  padding: 12px 12px;
-  min-height: 56px;
+  background: white;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  border: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  display: flex;
+  align-items: flex-start; /* align content to top/left */
+}
+.chat-list-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+}
+
+.chat-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #0d6efd;
+  flex: 0 0 48px;
+}
+
+.chat-avatar svg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: block;
 }
 
 .chat-item-body {
-  position: relative;
-  padding-right: 64px; /* leave space for time */
-  padding-bottom: 22px; /* leave space at bottom for the time line */
+  min-width: 0; /* allow truncation */
+  text-align: left;
 }
 
 .chat-item-name {
-  font-weight: 600;
-  display: block;
-  margin-bottom: 6px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  font-size: 1rem;
+  text-align: left;
+}
+
+.chat-item-subtitle {
+  font-size: 0.85rem;
+  margin-top: 2px;
 }
 
 .chat-item-time {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  color: #6c757d; /* bootstrap secondary / gray */
-  font-size: 0.75rem; /* smaller */
+  color: #6c757d;
+  font-size: 0.75rem;
 }
 
-/* When the chat item is active (selected), make the time text white for contrast */
+/* Active (selected) style */
+.chat-list-item.active {
+  background: #0d6efd;
+  color: white;
+}
+.chat-list-item.active .chat-avatar {
+  background: rgba(255,255,255,0.12);
+  color: white;
+}
+.chat-list-item.active .chat-item-subtitle,
 .chat-list-item.active .chat-item-time {
-  color: #ffffff;
+  color: rgba(255,255,255,0.9);
 }
 
-.chat-item-time::before {
-  content: '';
+/* Ensure first/last items keep rounded corners when stacked */
+.chat-list-group {
+  padding: 8px; /* give breathing space so first/last radius is visible */
+}
+.chat-list-group .chat-list-item:first-child {
+  margin-top: 0;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+.chat-list-group .chat-list-item:last-child {
+  margin-bottom: 0;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
 }

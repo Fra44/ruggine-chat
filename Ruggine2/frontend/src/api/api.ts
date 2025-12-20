@@ -178,6 +178,8 @@ export interface ChatDAO {
     user_id_2: number | null;
     group_name: string | null;
     last_message_at: string | null;
+    // Optional preview text of the last message (filled client-side when available)
+    last_message_preview?: string | null;
     username_1: string | null;
     username_2: string | null;
 }

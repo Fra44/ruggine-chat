@@ -118,7 +118,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     const chatToUpdate = prevChats.find(c => c.id === newMessage.chat_id);
 
                     if (chatToUpdate) {
-                        const newChat: ChatDAO = { ...chatToUpdate, last_message_at: newMessage.sent_at };
+                        const newChat: ChatDAO = { ...chatToUpdate, last_message_at: newMessage.sent_at, last_message_preview: newMessage.content };
                         // Inserisce la chat aggiornata in cima
                         updatedChats = [newChat, ...updatedChats];
                     }
@@ -200,8 +200,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLoadingChats(true);
         try {
             const fetchedChats = await getChats();
+            // Try to fetch a short preview (last message content) for each chat.
+            // This is optional and best-effort: failures won't block chat list rendering.
+            const withPreview = await Promise.all(fetchedChats.map(async (c) => {
+                try {
+                    const msgs = await getChatMessages(c.id);
+                    const last = msgs.length ? msgs[msgs.length - 1] : null;
+                    return { ...c, last_message_preview: last ? last.content : null };
+                } catch (err) {
+                    return { ...c, last_message_preview: null };
+                }
+            }));
+
             // Ordina subito le chat per last_message_at
-            const sortedChats = fetchedChats.sort((a, b) =>
+            const sortedChats = withPreview.sort((a, b) =>
                 (b.last_message_at || '').localeCompare(a.last_message_at || '')
             );
             setChats(sortedChats);
