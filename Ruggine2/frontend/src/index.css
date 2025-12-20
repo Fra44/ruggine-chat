@@ -144,3 +144,13 @@ button:focus-visible {
     color: #000;
   }
 }
+
+/* Date separator inside chat window */
+.date-separator {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(200,200,200,0.12);
+  color: rgba(200,200,200,0.95);
+  font-weight: 600;
+}

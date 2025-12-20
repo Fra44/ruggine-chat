@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Card, Spinner } from 'react-bootstrap';
 // Rimosso: import { type ChatDAO, type MessageDAO, type SendMessagePayload, sendChatMessage } from '../api/api';
 import { type ChatDAO, type MessageDAO, getUsernameFromUserId } from '../api/api';
-import { formatToUTCPlus1 } from '../utils/time';
+import { formatToUTCPlus1, chatMessageDateHeader } from '../utils/time';
 import { type User } from '../models/models';
 import { useAppContext } from '../context/AppContext'; // Importiamo il Context
 
@@ -55,13 +55,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                 c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' });
                 return;
             } catch (_e) {
-                // Fall back se scrollTo con options non supportato
                 c.scrollTop = c.scrollHeight;
                 return;
             }
         }
 
-        // Fallback: se non troviamo il container, usa ancora il previous ref
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
@@ -127,18 +125,31 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                     </div>
                 ) : (
                     <div className="messages-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {messages.map((message) => {
-                            const isMyMessage = message.sender_id === currentUser.user_id; // Usiamo currentUser.id
+                        {(() => {
+                            const nodes: React.ReactNode[] = [];
+                            let prevKey: string | null = null;
+                            for (let i = 0; i < messages.length; i++) {
+                                const message = messages[i];
+                                const adjustedDate = new Date(new Date(message.sent_at).getTime() + 60 * 60 * 1000);
+                                const key = adjustedDate.toDateString();
+                                if (prevKey !== key) {
+                                    nodes.push(
+                                        <div key={`d-${i}`} className="date-separator" style={{ textAlign: 'center', margin: '8px 0', fontSize: '0.85rem', color: 'rgba(150,150,150,0.9)' }}>
+                                            {chatMessageDateHeader(message.sent_at)}
+                                        </div>
+                                    );
+                                    prevKey = key;
+                                }
 
-                            // Usa lo username dal cache
-                            const username = usernames[message.sender_id];
-                            const senderLabel = username && username !== 'loading' ? username : null;
+                                const isMyMessage = message.sender_id === currentUser.user_id;
+                                const username = usernames[message.sender_id];
+                                const senderLabel = username && username !== 'loading' ? username : null;
 
-                            return (
-                                <div
-                                    key={message.id}
-                                    className={`message-bubble ${isMyMessage ? 'my-message' : 'other-message'}`}
-                                    style={{
+                                nodes.push(
+                                    <div
+                                        key={message.id}
+                                        className={`message-bubble ${isMyMessage ? 'my-message' : 'other-message'}`}
+                                        style={{
                                             alignSelf: isMyMessage ? 'flex-end' : 'flex-start',
                                             display: 'flex',
                                             flexDirection: 'column',
@@ -148,34 +159,34 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                                             boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                                             marginBottom: '10px',
                                         }}
-                                >
-                                    <div className="message-content-wrapper">
-                                        {/* Mostra il nome del mittente solo nei gruppi o se non è il mio messaggio */}
-                                        {/* Aggiunto controllo per il tipo di chat come suggerito nel tuo codice originale */}
-                                        {!isMyMessage && chat.chat_type === 'GROUP' && senderLabel && (
-                                            <div className="sender-label" style={{ fontSize: '0.85em', color: '#555' }}>
-                                                {senderLabel}
-                                            </div>
-                                        )}
+                                    >
+                                        <div className="message-content-wrapper">
+                                            {!isMyMessage && chat.chat_type === 'GROUP' && senderLabel && (
+                                                <div className="sender-label" style={{ fontSize: '0.85em', color: '#555' }}>
+                                                    {senderLabel}
+                                                </div>
+                                            )}
 
-                                        <div className="message-content" style={{ fontSize: '1em', marginBottom: '5px' }}>
-                                            {message.content}
+                                            <div className="message-content" style={{ fontSize: '1em', marginBottom: '5px' }}>
+                                                {message.content}
+                                            </div>
+                                            <small
+                                                className="message-timestamp"
+                                                style={{
+                                                    alignSelf: isMyMessage ? 'flex-end' : 'flex-start',
+                                                    fontSize: '0.75em',
+                                                    color: '#888',
+                                                }}
+                                            >
+                                                {formatToUTCPlus1(message.sent_at)}
+                                            </small>
                                         </div>
-                                        <small
-                                            className="message-timestamp"
-                                            style={{
-                                                alignSelf: isMyMessage ? 'flex-end' : 'flex-start',
-                                                fontSize: '0.75em',
-                                                color: '#888',
-                                            }}
-                                        >
-                                            {formatToUTCPlus1(message.sent_at)}
-                                        </small>
                                     </div>
-                                </div>
-                            );
-                        })}
-                        <div ref={messagesEndRef} />
+                                );
+                            }
+                            nodes.push(<div key="end" ref={messagesEndRef} />);
+                            return nodes;
+                        })()}
                     </div>
                 )}
             </Card.Body>
