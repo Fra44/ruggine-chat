@@ -56,9 +56,9 @@ export default function RegisterPage() {
     }
 
     return (
-        <Container className="my-5 auth-container">
-            <Row className="justify-content-md-center">
-                <Col md={9} lg={6} xl={12}>
+        <Container fluid className="auth-container d-flex align-items-center justify-content-center">
+            <Row className="w-100 justify-content-center">
+                <Col xs={12} sm={8} md={9} lg={6} xl={5}>
                     <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
                         <div className="login-link-header mb-4">
                             <span className="text-muted me-2 auth-secondary-text">Already have an account?</span>
