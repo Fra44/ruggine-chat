@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Card, Spinner } from 'react-bootstrap';
 // Rimosso: import { type ChatDAO, type MessageDAO, type SendMessagePayload, sendChatMessage } from '../api/api';
 import { type ChatDAO, type MessageDAO, getUsernameFromUserId } from '../api/api';
+import { formatToUTCPlus1 } from '../utils/time';
 import { type User } from '../models/models';
 import { useAppContext } from '../context/AppContext'; // Importiamo il Context
 
@@ -168,7 +169,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                                                 color: '#888',
                                             }}
                                         >
-                                            {new Date(message.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            {formatToUTCPlus1(message.sent_at)}
                                         </small>
                                     </div>
                                 </div>

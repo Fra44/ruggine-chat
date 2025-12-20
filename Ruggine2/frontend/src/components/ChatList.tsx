@@ -5,6 +5,7 @@ import { ListGroup } from 'react-bootstrap';
 import './ChatList.css';
 import { type ChatDAO } from '../api/api';
 import type { User } from '../models/models';
+import { formatToUTCPlus1 } from '../utils/time';
 
 interface ChatListProps {
     chats: ChatDAO[];
@@ -67,7 +68,7 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, selectedChatId, onSel
                             <div className="d-flex justify-content-between align-items-start">
                                 <div className="chat-item-name text-truncate">{getChatName(chat)}</div>
                                 <small className="chat-item-time text-nowrap ms-2">
-                                    {chat.last_message_at ? new Date(chat.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                        {chat.last_message_at ? formatToUTCPlus1(chat.last_message_at) : ''}
                                 </small>
                             </div>
                             {chat.last_message_preview ? (
