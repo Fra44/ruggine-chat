@@ -12,17 +12,32 @@ export default function RegisterPage() {
     const [username, setUsername] = useState("");
     const [usernameError, setUsernameError] = useState("");
     const [password, setPassword] = useState("");
+    const [passwordError, setPasswordError] = useState("");
     const [loading, setLoading] = useState(false);
 
     const { user } = useAppContext();
 
+    // allow the user to click submit even if password < 8; final validation happens on submit
     const isFormValid = username.trim() !== "" && password.trim() !== "";
 
     const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        if (!isFormValid) return;
+
+        // basic presence check
+        if (username.trim() === "" || password.trim() === "") {
+            if (username.trim() === "") setUsernameError('Username richiesto');
+            if (password.trim() === "") setPasswordError('Password richiesta');
+            return;
+        }
+
+        // password length validation: show error only after attempted submit
+        if (password.trim().length < 8) {
+            setPasswordError('Password must be at least 8 characters');
+            return;
+        }
+
         setLoading(true);
 
         // Final validation: username must not contain spaces or semicolons
@@ -115,11 +130,17 @@ export default function RegisterPage() {
                                                 type="password"
                                                 placeholder="At least 8 characters"
                                                 value={password}
-                                                onChange={(e) => setPassword(e.target.value)}
+                                                onChange={(e) => {
+                                                    const v = e.target.value;
+                                                    setPassword(v);
+                                                    // clear previous submit error while typing
+                                                    if (passwordError) setPasswordError('');
+                                                }}
                                                 required
                                                 className="auth-input"
                                                 autoComplete="new-password"
                                             />
+                                            {passwordError && <div className="text-danger mt-1">{passwordError}</div>}
                                         </Form.Group>
                                     </motion.div>
 
