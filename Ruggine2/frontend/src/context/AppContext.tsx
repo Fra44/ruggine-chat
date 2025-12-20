@@ -131,8 +131,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
                 // Opzionale: notifiche per messaggi in chat non selezionate
                 if (selectedChat?.id !== newMessage.chat_id) {
-                    const chatName = chats.find(c => c.id === newMessage.chat_id)?.group_name || `Chat ${newMessage.chat_id}`;
-                    toast(`New message in ${chatName}`, { icon: '💬' });
+                    getUsernameFromUserId(newMessage.sender_id).then(username => {
+                        toast(`New message from ${username}`, { icon: '💬' });
+                    }).catch(() => {
+                        const chatName = chats.find(c => c.id === newMessage.chat_id)?.group_name || `Chat ${newMessage.chat_id}`;
+                        toast(`New message in ${chatName}`, { icon: '💬' });
+                    });
                 }
                 break;
 
