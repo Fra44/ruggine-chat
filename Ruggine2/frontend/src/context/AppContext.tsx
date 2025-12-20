@@ -164,15 +164,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         // Prefer server-provided username, otherwise try resolving it via API
                         const provided = (newInvite as any).sender_username;
                         if (provided) {
-                            toast(`Nuovo invito da ${provided}`, { icon: '📨' });
+                            toast(`New invite from ${provided}`, { icon: '📨' });
                         } else if (newInvite.sender_id != null) {
                             // async resolve and toast when available; fallback to id on error
                             getUsernameFromUserId(newInvite.sender_id)
-                                .then(name => toast(`Nuovo invito da ${name}`, { icon: '📨' }))
-                                .catch(() => toast(`Nuovo invito da ${newInvite.sender_id}`, { icon: '📨' }));
+                                .then(name => toast(`New invite from ${name}`, { icon: '📨' }))
+                                .catch(() => toast(`New invite from ${newInvite.sender_id}`, { icon: '📨' }));
                         } else {
                             // sender_id is missing/null, show a generic fallback
-                            toast(`Nuovo invito da Sconosciuto`, { icon: '📨' });
+                            toast(`New invite from Unknown`, { icon: '📨' });
                         }
                     }
                 } catch (err) {
@@ -250,9 +250,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setChats(updatedChats);
             const created = updatedChats.find(c => c.id === chatId) ?? null;
             if (created) setSelectedChat(created);
-            toast.success('Invito accettato');
+            toast.success('Invite Accepted');
         } catch (err: any) {
-            toast.error(err?.message || 'Errore accettando invito');
+            toast.error(err?.message || 'Error accepting invite');
             throw err;
         }
     }, []);
@@ -261,9 +261,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
             await rejectInviteApi(invite_id);
             setInvites(prev => prev.filter(inv => inv.id !== invite_id));
-            toast('Invito rifiutato');
+            toast('Invite Rejected');
         } catch (err: any) {
-            toast.error(err?.message || 'Errore rifiutando invito');
+            toast.error(err?.message || 'Error rejecting invite');
             throw err;
         }
     }, []);

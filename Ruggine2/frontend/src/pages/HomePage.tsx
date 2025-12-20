@@ -162,31 +162,34 @@ export default function HomePage() {
                 {/* ------------------------------------- */}
                 {/* COLONNA SINISTRA: CHAT LIST (30% larghezza) */}
                 {/* ------------------------------------- */}
-                <div style={{ width: '30%', height: '100%', flexShrink: 0, minWidth: 0 }} className="chatlist-sidebar">
-                    <div className="d-flex justify-content-between align-items-center mt-3 mb-4">
-                        <h4 className="auth-title" style={{ fontSize: '1.5rem', textAlign: 'center' }}>
-                            Chats - {user ? user.username : ""}
-                        </h4>
-                        <Button variant="outline-danger" size="sm" onClick={logout}>
-                            Logout
-                        </Button>
+                <div style={{ width: '30%', height: '100%', flexShrink: 0, minWidth: 0, display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }} className="chatlist-sidebar">
+                    <div style={{ padding: '0 0.75rem' }}>
+                        <div className="d-flex justify-content-between align-items-center mt-3 mb-2">
+                            <h4 className="auth-title" style={{ fontSize: '1.5rem', textAlign: 'center' }}>
+                                Chats - {user ? user.username : ""}
+                            </h4>
+                            <Button variant="outline-danger" size="sm" onClick={logout}>
+                                Logout
+                            </Button>
+                        </div>
+                        {/* Search bar */}
+                        <div className="mb-2 d-flex gap-2">
+                            <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Search chat..."
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                            />
+                        </div>
+                        {/* New chat button */}
+                        <div className="mb-2 d-flex gap-2">
+                            <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
+                                New chat
+                            </Button>
+                        </div>
                     </div>
-                    {/* Search bar */}
-                    <div className="mb-3 d-flex gap-2">
-                        <input
-                            type="text"
-                            className="form-control"
-                            placeholder="Search chat..."
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                        />
-                    </div>
-                    {/* New chat button */}
-                    <div className="mb-3 d-flex gap-2">
-                        <Button variant="primary" size="sm" onClick={() => setShowModal(true)}>
-                            New chat
-                        </Button>
-                    </div>
+                    <div style={{ flex: 1, overflowY: 'auto' }}>
                     {/* Modal per inserire username */}
                     <Modal show={showModal} onHide={() => setShowModal(false)} className="text-dark">
                         <Modal.Header closeButton>
@@ -321,19 +324,20 @@ export default function HomePage() {
                             </Button>
                         </Modal.Footer>
                     </Modal>
-                    {loadingChats ? (
-                        <div className="text-center mt-5">
-                            <Spinner animation="border" variant="light" />
-                        </div>
-                    ) : (
-                        user && <ChatList
-                            chats={chats}
-                            selectedChatId={selectedChat?.id}
-                            onSelectChat={handleSelectChat}
-                            user={user} // Passiamo l'utente dal Context
-                            search={search}
-                        />
-                    )}
+                        {loadingChats ? (
+                            <div className="text-center mt-5">
+                                <Spinner animation="border" variant="light" />
+                            </div>
+                        ) : (
+                            user && <ChatList
+                                chats={chats}
+                                selectedChatId={selectedChat?.id}
+                                onSelectChat={handleSelectChat}
+                                user={user} // Passiamo l'utente dal Context
+                                search={search}
+                            />
+                        )}
+                    </div>
                 </div>
 
                 {/* ------------------------------------- */}

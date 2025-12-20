@@ -93,7 +93,7 @@ export default function RegisterPage() {
                                     Create account
                                 </motion.h2>
                                 <p className="text-center mb-4 auth-subtitle">
-                                    Register to start using Ruggine2 Chat — it's fast and private.
+                                    Register to start using Ruggine — it's fast and private.
                                 </p>
 
                                 <Form onSubmit={handleSubmit} className="d-flex flex-column auth-grid-gap">

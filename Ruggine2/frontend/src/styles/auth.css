@@ -12,9 +12,9 @@
   --color-text-secondary: #b0b0b0;
   --color-border: #444444;
 
-  /* Colore Primario (Accento - PIÙ LUMINOSO) */
-  --color-primary-main: #904fea; /* Viola più brillante e visibile */
-  --color-primary-hover: #a078f0;
+  /* Colore Primario (Accento) - usa il brand globale ruggine */
+  --color-primary-main: var(--brand);
+  --color-primary-hover: var(--brand-hover);
   --color-primary-text: #ffffff;
 }
 
@@ -90,7 +90,7 @@ body {
   background-color: var(--color-bg-input);
   color: var(--color-text-primary);
   border-color: var(--color-primary-main);
-  box-shadow: 0 0 0 0.25rem rgba(144, 79, 234, 0.35);
+  box-shadow: 0 0 0 0.25rem rgba(var(--brand-rgb), 0.35);
 }
 
 /* Placeholder text contrasto */
@@ -115,7 +115,7 @@ body {
   font-size: 1.15rem;
   text-transform: uppercase;
 
-  box-shadow: 0 4px 15px rgba(144, 79, 234, 0.4);
+  box-shadow: 0 4px 15px rgba(var(--brand-rgb), 0.4);
   transition: all 0.2s ease;
 }
 
@@ -123,7 +123,7 @@ body {
   background-color: var(--color-primary-hover);
   border-color: var(--color-primary-hover);
   transform: translateY(-3px);
-  box-shadow: 0 7px 20px rgba(144, 79, 234, 0.5);
+  box-shadow: 0 7px 20px rgba(var(--brand-rgb), 0.5);
 }
 
 .auth-button-primary.btn-primary:disabled {
@@ -146,10 +146,10 @@ body {
 }
 
 /* Stile per la frase "Already have an account?" */
-.login-link-header .auth-secondary-text {
-  color: var(--color-text-secondary);
-  font-size: 0.9rem;
-}
+  .login-link-header .auth-secondary-text {
+    color: var(--color-text-secondary) !important;
+    font-size: 0.9rem;
+  }
 
 /* Rendi il link di Login un bottone discreto e visibile */
 .auth-link-header-button {

@@ -23,7 +23,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  color: #0d6efd;
+  color: var(--brand);
   flex: 0 0 48px;
 }
 
@@ -58,16 +58,25 @@
 
 /* Active (selected) style */
 .chat-list-item.active {
-  background: #0d6efd;
+  background: var(--brand);
   color: white;
 }
 .chat-list-item.active .chat-avatar {
   background: rgba(255,255,255,0.12);
   color: white;
 }
+/* Ensure subtitle/time become highly visible when an item is active. Use strong specificity
+   to override Bootstrap's .text-muted and similar utility classes. */
 .chat-list-item.active .chat-item-subtitle,
-.chat-list-item.active .chat-item-time {
-  color: rgba(255,255,255,0.9);
+.chat-list-item.active .chat-item-time,
+.chat-list-item.active .chat-item-subtitle.text-muted,
+.chat-list-item.active .chat-item-time.text-muted {
+  color: rgba(255,255,255,0.95) !important;
+}
+
+/* Slightly brighter subtitle for non-selected items for better readability */
+.chat-item-subtitle.text-muted {
+  color: rgba(156,162,168,0.95);
 }
 
 /* Ensure first/last items keep rounded corners when stacked */

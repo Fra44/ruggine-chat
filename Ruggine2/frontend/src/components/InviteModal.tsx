@@ -120,26 +120,25 @@ export default function InviteModal() {
     return (
         <Modal show={show} onHide={() => setShow(false)} centered className="text-dark">
             <Modal.Header closeButton>
-                <Modal.Title className="text-dark">Invito a chat</Modal.Title>
+                <Modal.Title className="text-dark">Chat Invite</Modal.Title>
             </Modal.Header>
             <Modal.Body className="text-dark">
                 <div>
-                    <strong>Da:</strong>{' '}
-                    {loadingSender ? <Spinner animation="border" size="sm" /> : (senderName || `Utente ${currentInvite.sender_id}`)}
+                    <strong>From:</strong>{' '}
+                    {loadingSender ? <Spinner animation="border" size="sm" /> : (senderName || `User ${currentInvite.sender_id}`)}
                 </div>
                 <div className="mt-2">
-                    <strong>Gruppo:</strong>{' '}
+                    <strong>Group:</strong>{' '}
                     {loadingGroup ? <Spinner animation="border" size="sm" /> : (groupName || `Chat ${currentInvite.chat_id}`)}
                 </div>
                 <div className="mt-3">
-                    <p>Sei stato invitato da {senderName || `Utente ${currentInvite.sender_id}`} a partecipare al gruppo {groupName || `Chat ${currentInvite.chat_id}` }.</p>
-                    <p>Accetta per unirti alla chat o rifiuta per ignorare l'invito.</p>
+                    <p>You have been invited by {senderName || `User ${currentInvite.sender_id}`} to join the group {groupName || `Chat ${currentInvite.chat_id}` }.</p>
+                    <p>Accept to join the chat or reject to ignore the invite.</p>
                 </div>
             </Modal.Body>
             <Modal.Footer>
-                <Button variant="secondary" onClick={() => setShow(false)} disabled={processing}>Chiudi</Button>
-                <Button variant="danger" onClick={handleReject} disabled={processing}>Rifiuta</Button>
-                <Button variant="primary" onClick={handleAccept} disabled={processing}>Accetta</Button>
+                <Button variant="secondary" onClick={handleReject} disabled={processing}>Reject</Button>
+                <Button variant="primary" onClick={handleAccept} disabled={processing}>Accept</Button>
             </Modal.Footer>
         </Modal>
     );

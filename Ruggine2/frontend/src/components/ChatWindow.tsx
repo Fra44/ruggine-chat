@@ -17,6 +17,7 @@ interface ChatWindowProps {
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, currentUser, onClose }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement | null>(null);
     const [messageText, setMessageText] = React.useState<string>("");
     const [usernames, setUsernames] = useState<Record<number, string>>({}); // Cache per username
     const [isSending, setIsSending] = useState(false); // Stato per disabilitare il bottone durante l'invio
@@ -44,8 +45,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
         }
     }
 
-    // Scorri in fondo quando i messaggi cambiano
+    // Scorri in fondo quando i messaggi cambiano (solo il container dei messaggi,
+    // così non si scrolla la scrollbar globale dell'app)
     useEffect(() => {
+        const c = messagesContainerRef.current;
+        if (c) {
+            try {
+                c.scrollTo({ top: c.scrollHeight, behavior: 'smooth' });
+                return;
+            } catch (_e) {
+                // Fall back se scrollTo con options non supportato
+                c.scrollTop = c.scrollHeight;
+                return;
+            }
+        }
+
+        // Fallback: se non troviamo il container, usa ancora il previous ref
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
@@ -104,7 +119,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                     <h3>{getChatName()}</h3>
                 </Card.Header>
 
-            <Card.Body className="chat-messages-container" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            <Card.Body ref={messagesContainerRef} className="chat-messages-container" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                 {loading ? (
                     <div className="text-center mt-5" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Spinner animation="border" variant="light" />
@@ -123,16 +138,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                                     key={message.id}
                                     className={`message-bubble ${isMyMessage ? 'my-message' : 'other-message'}`}
                                     style={{
-                                        alignSelf: isMyMessage ? 'flex-end' : 'flex-start',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        maxWidth: '60%',
-                                        padding: '10px',
-                                        borderRadius: '10px',
-                                        backgroundColor: isMyMessage ? '#DCF8C6' : '#FFFFFF',
-                                        boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                                        marginBottom: '10px',
-                                    }}
+                                            alignSelf: isMyMessage ? 'flex-end' : 'flex-start',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            maxWidth: '60%',
+                                            padding: '10px',
+                                            borderRadius: '10px',
+                                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                                            marginBottom: '10px',
+                                        }}
                                 >
                                     <div className="message-content-wrapper">
                                         {/* Mostra il nome del mittente solo nei gruppi o se non è il mio messaggio */}
