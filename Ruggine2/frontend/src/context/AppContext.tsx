@@ -305,6 +305,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     };
 
                     const payload = decodePayload(token);
+                    // If token has exp claim and it's expired -> force logout
+                    if (payload && typeof payload.exp === 'number') {
+                        const nowSec = Math.floor(Date.now() / 1000);
+                        if (payload.exp <= nowSec) {
+                            // token expired: remove and redirect to login
+                            localStorage.removeItem('token');
+                            setUser(null);
+                            navigate('/login');
+                            return;
+                        }
+                    }
                     if (payload) {
                         const id = Number(payload.user_id ?? payload.sub ?? payload.uid ?? null);
                         const username = payload.username ?? payload.user ?? payload.name ?? null;
@@ -355,6 +366,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setMessages([]);
         navigate('/login');
     };
+
+    // Ascolta l'evento globale emesso dalle chiamate API quando ricevono 401
+    useEffect(() => {
+        const handler = () => {
+            toast.error('Session expired. Please login again.');
+            logout();
+        };
+        window.addEventListener('app:unauthorized', handler as EventListener);
+        return () => window.removeEventListener('app:unauthorized', handler as EventListener);
+    }, [logout]);
 
     // 5. Gestione selezione chat (carica i messaggi)
     const handleSetSelectedChat = (chat: ChatDAO | null) => {

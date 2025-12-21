@@ -10,6 +10,40 @@ const BASE_URL = 'http://localhost:8080/api';
  */
 export const getToken = () => localStorage.getItem('token');;
 
+/**
+ * authFetch: wrapper around fetch that injects the Authorization header when
+ * a token is available and dispatches a global event on 401 so the app can
+ * react (logout/redirect).
+ */
+async function authFetch(input: RequestInfo, init?: RequestInit) {
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (init && init.headers) {
+        // normalize HeadersInit into a plain object when possible
+        if (init.headers instanceof Headers) {
+            init.headers.forEach((v, k) => headers[k] = v);
+        } else if (Array.isArray(init.headers)) {
+            (init.headers as Array<[string,string]>).forEach(([k,v]) => headers[k] = v);
+        } else {
+            Object.assign(headers, init.headers as Record<string,string>);
+        }
+    }
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const merged: RequestInit = { ...(init || {}), headers };
+    const res = await fetch(input, merged);
+    if (res.status === 401) {
+        try {
+            window.dispatchEvent(new CustomEvent('app:unauthorized'));
+        } catch (e) {
+            // ignore if dispatch fails
+        }
+    }
+    return res;
+}
+
 
 /// USERS
 
@@ -97,11 +131,10 @@ export const registerUser = async (
 };
 
 export const getUsernameFromUserId = async (user_id: number): Promise<string> => {
-    const res = await fetch(`${BASE_URL}/users/${user_id}`, {
+    const res = await authFetch(`${BASE_URL}/users/${user_id}`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${getToken()}`
         },
     });
 
@@ -113,11 +146,10 @@ export const getUsernameFromUserId = async (user_id: number): Promise<string> =>
 }
 
 export const getUserIdByUsername = async (username: string): Promise<number> => {
-    const res = await fetch(`${BASE_URL}/users/by_username/${username}`, {
+    const res = await authFetch(`${BASE_URL}/users/by_username/${username}`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${getToken()}`
         },
     });
 
@@ -136,11 +168,10 @@ export const getUsersByPrefix = async (prefix: string, limit = 5): Promise<strin
         const url = new URL(`${BASE_URL}/users/search`);
         url.searchParams.append('prefix', prefix);
         url.searchParams.append('limit', String(limit));
-        const res = await fetch(url.toString(), {
+        const res = await authFetch(url.toString(), {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}`
             },
         });
 
@@ -267,11 +298,10 @@ function convertToMessageDAOs(dtos: any[]): MessageDAO[] {
  */
 export const getChats = async (): Promise<ChatDAO[]> => {
     try {
-        const res = await fetch(`${BASE_URL}/chats/`, {
+        const res = await authFetch(`${BASE_URL}/chats/`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}`
             },
         });
 
@@ -292,11 +322,10 @@ export const getChats = async (): Promise<ChatDAO[]> => {
  */
 export const createNewPrivateChat = async (otherUserId: number): Promise<ChatDAO> => {
     try {
-        const res = await fetch(`${BASE_URL}/chats/new_private/${otherUserId}`, {
+        const res = await authFetch(`${BASE_URL}/chats/new_private/${otherUserId}`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}`
             },
         });
 
@@ -322,11 +351,10 @@ export const createNewPrivateChat = async (otherUserId: number): Promise<ChatDAO
  */
 export const createNewGroupChat = async (groupName: string): Promise<number> => {
     try {
-        const res = await fetch(`${BASE_URL}/chats/new_group`, {
+        const res = await authFetch(`${BASE_URL}/chats/new_group`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}`
             },
             body: JSON.stringify({ group_name: groupName }),
         });
@@ -351,11 +379,10 @@ export const createNewGroupChat = async (groupName: string): Promise<number> => 
  */
 export const getChatMessages = async (chatId: number): Promise<MessageDAO[]> => {
     try {
-        const res = await fetch(`${BASE_URL}/chats/${chatId}/messages`, {
+        const res = await authFetch(`${BASE_URL}/chats/${chatId}/messages`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}`
             },
         });
 
@@ -376,11 +403,10 @@ export const getChatMessages = async (chatId: number): Promise<MessageDAO[]> => 
  */
 export const sendChatMessage = async (payload: SendMessagePayload): Promise<void> => {
     try {
-        const res = await fetch(`${BASE_URL}/chats/${payload.chat_id}/messages`, {
+        const res = await authFetch(`${BASE_URL}/chats/${payload.chat_id}/messages`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}`
             },
             body: JSON.stringify({ content: payload.content }),
         });
@@ -452,11 +478,10 @@ function convertToInviteDAOs(dtos: any[]): InviteDAO[] {
  */
 export const inviteUser = async (receiver_id: number, chat_id: number): Promise<void> => {
     try {
-        const res = await fetch(`${BASE_URL}/invites/create`, {
+        const res = await authFetch(`${BASE_URL}/invites/create`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}`
             },
             body: JSON.stringify({ chat_id: chat_id, receiver_id: receiver_id }),
         });
@@ -478,11 +503,10 @@ export const inviteUser = async (receiver_id: number, chat_id: number): Promise<
  */
 export const getInvites = async (): Promise<InviteDAO[]> => {
     try {
-        const res = await fetch(`${BASE_URL}/invites/`, {
+        const res = await authFetch(`${BASE_URL}/invites/`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}`
             },
         });
 
@@ -506,11 +530,10 @@ export const acceptInvite = async (invite_id: number): Promise<number> => {
         if (!invite_id || invite_id <= 0 || Number.isNaN(invite_id)) {
             throw new Error("Invalid invite ID");
         }
-        const res = await fetch(`${BASE_URL}/invites/accept/${invite_id}`, {
+        const res = await authFetch(`${BASE_URL}/invites/accept/${invite_id}`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}`
             },
         });
 
@@ -535,11 +558,10 @@ export const rejectInvite = async (invite_id: number): Promise<void> => {
         if (!invite_id || invite_id <= 0 || Number.isNaN(invite_id)) {
             throw new Error("Invalid invite ID");
         }
-        const res = await fetch(`${BASE_URL}/invites/reject/${invite_id}`, {
+        const res = await authFetch(`${BASE_URL}/invites/reject/${invite_id}`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}`
             },
         });
 
