@@ -126,7 +126,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // Gestione della connessione WS
     // Hook migliorato con backoff di riconnessione e uso di ref per selectedChat
-    const handleWsMessage = useCallback((msg: ServerWsMessage<any>) => {
+    const handleWsMessage = useCallback(async (msg: ServerWsMessage<any>) => {
         const { type, payload } = msg;
 
         switch (type) {
@@ -153,13 +153,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
                 // Notification for messages in chats not currently selected
                 if (selectedChatRef.current?.id !== newMessage.chat_id) {
-                    // try to resolve sender username for a friendlier toast
-                    getUsernameFromUserId(newMessage.sender_id).then(username => {
-                        toast(`New message from ${username}`, { icon: '💬' });
-                    }).catch(() => {
-                        const chatName = chats.find(c => c.id === newMessage.chat_id)?.group_name || `Chat ${newMessage.chat_id}`;
+                    // try to find the chat locally
+                    let chat = chats.find(c => c.id === newMessage.chat_id);
+
+                    // if we don't have the chat yet (e.g. new group), fetch chats once
+                    if (!chat) {
+                        try {
+                            const fetched = await getChats();
+                            // merge/replace local chats with fetched list while preserving previews
+                            setChats(prev => {
+                                const map = new Map<number, ChatDAO>();
+                                // index previous by id for quick lookup
+                                const prevById = new Map(prev.map(p => [p.id, p] as [number, ChatDAO]));
+
+                                fetched.forEach(c => {
+                                    const existing = prevById.get(c.id);
+                                    const preview = existing?.last_message_preview ?? c.last_message_preview ?? null;
+                                    map.set(c.id, { ...c, last_message_preview: preview });
+                                });
+
+                                // include any prev chats not present in fetched
+                                prev.forEach(c => { if (!map.has(c.id)) map.set(c.id, c); });
+
+                                // ensure the chat for the incoming message has an updated preview/last_message_at
+                                if (map.has(newMessage.chat_id)) {
+                                    const entry = map.get(newMessage.chat_id)!;
+                                    map.set(newMessage.chat_id, { ...entry, last_message_preview: newMessage.content, last_message_at: newMessage.sent_at });
+                                } else {
+                                    // if not present, try to update prev entry
+                                    const prevEntry = prevById.get(newMessage.chat_id);
+                                    if (prevEntry) {
+                                        map.set(prevEntry.id, { ...prevEntry, last_message_preview: newMessage.content, last_message_at: newMessage.sent_at });
+                                    }
+                                }
+
+                                return Array.from(map.values()).sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || ''));
+                            });
+
+                            chat = fetched.find(c => c.id === newMessage.chat_id) ?? undefined;
+                        } catch (err) {
+                            console.warn('Failed to fetch chats for WS notification', err);
+                        }
+                    }
+
+                    const isGroup = chat?.chat_type && String(chat.chat_type).toLowerCase() === 'group';
+                    if (isGroup) {
+                        const chatName = chat?.group_name || `Chat ${newMessage.chat_id}`;
                         toast(`New message in ${chatName}`, { icon: '💬' });
-                    });
+                    } else if (chat && chat.chat_type && String(chat.chat_type).toLowerCase() === 'private') {
+                        // private chat -> show sender name
+                        getUsernameFromUserId(newMessage.sender_id).then(username => {
+                            toast(`New message from ${username}`, { icon: '💬' });
+                        }).catch(() => {
+                            const chatName = chat?.group_name || `Chat ${newMessage.chat_id}`;
+                            toast(`New message in ${chatName}`, { icon: '💬' });
+                        });
+                    } else {
+                        // unknown chat: fall back to resolving sender or generic message
+                        getUsernameFromUserId(newMessage.sender_id).then(username => {
+                            toast(`New message from ${username}`, { icon: '💬' });
+                        }).catch(() => {
+                            toast('New message', { icon: '💬' });
+                        });
+                    }
                 }
                 break;
             }
