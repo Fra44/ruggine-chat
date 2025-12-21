@@ -116,6 +116,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [messages, setMessages] = useState<MessageDAO[]>([]);
     const [invites, setInvites] = useState<InviteDAO[]>([]);
 
+    // Ref to track invite ids to avoid races between fetch and WS events
+    const invitesRef = useRef<Set<number>>(new Set());
+
+    const addInvite = useCallback((inv: InviteDAO) => {
+        if (invitesRef.current.has(inv.id)) return false;
+        invitesRef.current.add(inv.id);
+        setInvites(prev => [inv, ...prev]);
+        return true;
+    }, []);
+
+    const removeInvite = useCallback((invite_id: number) => {
+        invitesRef.current.delete(invite_id);
+        setInvites(prev => prev.filter(inv => inv.id !== invite_id));
+    }, []);
+
     // Ref per stabilizzare selectedChat nel callback WS
     const selectedChatRef = useRef<ChatDAO | null>(null);
 
@@ -230,9 +245,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             case 'NEW_INVITE': {
                 try {
                     const newInvite = payload as InviteDAO;
-                    setInvites(prev => [newInvite, ...prev]);
-                    // Prefer server-provided username, otherwise resolve via API
-                    const provided = (newInvite as any).sender_username;
+
+                    // Try to enrich invite quickly (resolve sender name and group name) before adding,
+                    // so that the modal shows human-friendly labels immediately.
+                    const enriched: any = { ...newInvite };
+                    const promises: Promise<any>[] = [];
+                    if (!enriched.sender_username && newInvite.sender_id != null) {
+                        promises.push(getUsernameFromUserId(newInvite.sender_id).then(n => { enriched.sender_username = n; }).catch(() => {}));
+                    }
+                    if (!enriched.group_name) {
+                        // try to resolve from local chats state first
+                        const localFound = chats.find(c => c.id === Number(newInvite.chat_id));
+                        if (localFound) {
+                            enriched.group_name = localFound.group_name ?? `Chat ${newInvite.chat_id}`;
+                        } else {
+                            // fallback: try a light external fetch but don't block long
+                            promises.push(getChats().then(cs => {
+                                const found = cs.find(c => c.id === Number(newInvite.chat_id));
+                                if (found) enriched.group_name = found.group_name ?? `Chat ${newInvite.chat_id}`;
+                            }).catch(() => {}));
+                        }
+                    }
+                    // await enrichment but don't let it block forever
+                    try {
+                        await Promise.race([Promise.all(promises), new Promise(res => setTimeout(res, 300))]);
+                    } catch (_e) {
+                        // ignore
+                    }
+
+                    const added = addInvite(enriched as InviteDAO);
+                    if (!added) break;
+
+                    const provided = enriched.sender_username || (newInvite as any).sender_username;
                     if (provided) {
                         toast(`New invite from ${provided}`, { icon: '📨' });
                     } else if (newInvite.sender_id != null) {
@@ -318,10 +362,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!user) return;
         try {
             const fetched = await getInvites();
+            // Enrich invites with group_name (prefer local `chats` state to avoid extra API calls)
+            let chatMap = new Map<number, any>();
+            if (chats && chats.length > 0) {
+                chats.forEach(c => chatMap.set(c.id, c));
+            } else {
+                try {
+                    const fetchedChats = await getChats();
+                    fetchedChats.forEach(c => chatMap.set(c.id, c));
+                } catch (err) {
+                    console.warn('fetchInvites: failed to fetch chats for enrichment', err);
+                }
+            }
+
+            const enriched = await Promise.all(fetched.map(async (inv) => {
+                const out = { ...inv } as any;
+                if (!out.group_name) {
+                    const found = chatMap.get(Number(inv.chat_id));
+                    if (found) out.group_name = found.group_name ?? `Chat ${inv.chat_id}`;
+                }
+                if (!out.sender_username && inv.sender_id != null) {
+                    try {
+                        out.sender_username = await getUsernameFromUserId(inv.sender_id);
+                    } catch (_err) {
+                        // leave as undefined -> InviteModal will fallback
+                    }
+                }
+                return out as InviteDAO;
+            }));
+
             setInvites(prev => {
                 // Merge without duplicates
                 const existingIds = new Set(prev.map(inv => inv.id));
-                const newInvites = fetched.filter(inv => !existingIds.has(inv.id));
+                const newInvites = enriched.filter(inv => !existingIds.has(inv.id));
+                // update ref
+                newInvites.forEach(n => invitesRef.current.add(n.id));
                 return [...prev, ...newInvites];
             });
         } catch (err: any) {
@@ -333,7 +408,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         try {
             const chatId = await acceptInviteApi(invite_id);
             // remove invite from list
-            setInvites(prev => prev.filter(inv => inv.id !== invite_id));
+            removeInvite(invite_id);
             // refresh chats (with previews) and select the created chat
             await refreshChats();
             const created = (await getChats()).find(c => c.id === chatId) ?? null;
@@ -348,7 +423,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const handleRejectInvite = useCallback(async (invite_id: number) => {
         try {
             await rejectInviteApi(invite_id);
-            setInvites(prev => prev.filter(inv => inv.id !== invite_id));
+            removeInvite(invite_id);
             toast('Invite Rejected');
         } catch (err: any) {
             toast.error(err?.message || 'Error rejecting invite');

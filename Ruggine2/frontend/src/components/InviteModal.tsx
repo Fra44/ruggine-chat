@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Modal, Button, Spinner } from 'react-bootstrap';
 import { useAppContext } from '../context/AppContext';
-import { getChats } from '../api/api';
+import { getUsernameFromUserId } from '../api/api';
 
 export default function InviteModal() {
-    const { invites, acceptInvite, rejectInvite } = useAppContext();
+    const { invites, acceptInvite, rejectInvite, chats } = useAppContext();
     const [show, setShow] = useState(false);
     const [currentInvite, setCurrentInvite] = useState<any | null>(null);
     const [senderName, setSenderName] = useState<string | null>(null);
@@ -35,11 +35,17 @@ export default function InviteModal() {
             // load sender name: prefer sender_username if provided in invite payload
             setLoadingSender(true);
             try {
-                if (mounted) {setSenderName(currentInvite.sender_username);} 
-            } catch (_err) {
-                if (mounted) {
-                    const fb = `Utente ${currentInvite.sender_id}`;
-                    setSenderName(fb);
+                if (currentInvite.sender_username) {
+                    if (mounted) setSenderName(currentInvite.sender_username);
+                } else if (currentInvite.sender_id != null) {
+                    try {
+                        const name = await getUsernameFromUserId(currentInvite.sender_id);
+                        if (mounted) setSenderName(name);
+                    } catch (_err) {
+                        if (mounted) setSenderName(`User ${currentInvite.sender_id}`);
+                    }
+                } else {
+                    if (mounted) setSenderName(null);
                 }
             } finally {
                 if (mounted) setLoadingSender(false);
@@ -51,9 +57,14 @@ export default function InviteModal() {
                 if (currentInvite.group_name) {
                     if (mounted) setGroupName(currentInvite.group_name);
                 } else {
-                    const chats = await getChats();
-                    const found = chats.find(c => c.id === Number(currentInvite.chat_id));
-                    if (mounted) setGroupName(found?.group_name ?? `Chat ${currentInvite.chat_id}`);
+                    // prefer local chats state (fast) to avoid extra API calls and delays
+                    const found = chats?.find(c => c.id === Number(currentInvite.chat_id));
+                    if (found) {
+                        if (mounted) setGroupName(found.group_name ?? `Chat ${currentInvite.chat_id}`);
+                    } else {
+                        // fallback to immediate placeholder; avoid long fetch here
+                        if (mounted) setGroupName(`Chat ${currentInvite.chat_id}`);
+                    }
                 }
             } catch (_err) {
                 if (mounted) setGroupName(`Chat ${currentInvite.chat_id}`);
@@ -65,32 +76,7 @@ export default function InviteModal() {
         return () => { mounted = false; };
     }, [currentInvite]);
 
-    useEffect(() => {
-        let mounted = true;
-        const loadGroup = async () => {
-            if (!currentInvite) {
-                setGroupName(null);
-                return;
-            }
-            setLoadingGroup(true);
-            try {
-                if (currentInvite.group_name) {
-                    if (mounted) setGroupName(currentInvite.group_name);
-                } else {
-                    const chats = await getChats();
-                    const found = chats.find(c => c.id === Number(currentInvite.chat_id));
-                    if (mounted) setGroupName(found?.group_name ?? `Chat ${currentInvite.chat_id}`);
-                }
-            } catch (err) {
-                console.error('InviteModal: failed to resolve group name', err);
-                if (mounted) setGroupName(`Chat ${currentInvite.chat_id}`);
-            } finally {
-                if (mounted) setLoadingGroup(false);
-            }
-        };
-        loadGroup();
-        return () => { mounted = false; };
-    }, [currentInvite]);
+    
 
     if (!currentInvite) return null;
 
