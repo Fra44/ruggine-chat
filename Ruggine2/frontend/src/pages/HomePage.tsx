@@ -27,7 +27,8 @@ export default function HomePage() {
         setSelectedChat, // Funzione per selezionare la chat
         logout, // Funzione di logout
         // sendMessage, // Se volessi implementare la logica qui
-        setChats // <--- aggiunto dal context
+        setChats, // <--- aggiunto dal context
+        refreshChats
     } = useAppContext(); // Otteniamo tutti gli stati e le azioni dal Context
 
     const navigate = useNavigate();
@@ -108,12 +109,11 @@ export default function HomePage() {
                 return;
             }
 
-            if (uniqueParts.length === 1) {
+                if (uniqueParts.length === 1) {
                 // private chat
                 const otherUserId = await getUserIdByUsername(uniqueParts[0]);
                 const newChat = await createNewPrivateChat(otherUserId);
-                const updatedChats = await getChats();
-                setChats(updatedChats);
+                    await refreshChats();
                 setShowModal(false);
                 setUsername("");
                 setGroupName("");
@@ -138,9 +138,9 @@ export default function HomePage() {
                     }
                 }
 
-                const updatedChats = await getChats();
-                setChats(updatedChats);
-                const created = updatedChats.find(c => c.id === newGroupId) ?? null;
+                await refreshChats();
+                const updated = await getChats();
+                const created = updated.find(c => c.id === newGroupId) ?? null;
                 setShowModal(false);
                 setUsername("");
                 setGroupName("");
