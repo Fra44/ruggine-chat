@@ -3,14 +3,15 @@ import React, {
     useState,
     useContext,
     useEffect,
-    useCallback
+    useCallback,
+    useRef
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import InviteModal from '../components/InviteModal';
 
 import type { User } from '../models/models';
-import type { ChatDAO, MessageDAO, LoginUserPayload, LoginResponse, ServerWsMessage, InviteDAO } from '../api/api';
+import type { ChatDAO, MessageDAO, LoginUserPayload, LoginResponse, ServerWsMessage, WsEventType, InviteDAO } from '../api/api';
 import { loginUser, getChats, getChatMessages, sendChatMessage, getInvites, acceptInvite as acceptInviteApi, rejectInvite as rejectInviteApi, getUsernameFromUserId } from '../api/api';
 
 interface AppContextType {
@@ -30,6 +31,7 @@ interface AppContextType {
     fetchMessages: (chatId: number) => Promise<void>;
     setChats: React.Dispatch<React.SetStateAction<ChatDAO[]>>;
     fetchInvites: () => Promise<void>;
+    refreshChats: () => Promise<void>;
     acceptInvite: (invite_id: number) => Promise<void>;
     rejectInvite: (invite_id: number) => Promise<void>;
 }
@@ -46,36 +48,56 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
  */
 const useWebSocket = (handleWsMessage: (msg: ServerWsMessage<any>) => void, token: string | null) => {
     const [socket, setSocket] = useState<WebSocket | null>(null);
+    const [reconnectAttempts, setReconnectAttempts] = useState(0);
+    const maxReconnectAttempts = 5;
 
-    useEffect(() => {
+    const connect = useCallback(() => {
         if (!token) return;
-        // URL of the WebSocket "endpoint"
         const WS_URL = `ws://localhost:8080/ws/?token=${token}`;
 
         const ws = new WebSocket(WS_URL);
         setSocket(ws);
 
-        ws.onopen = () => console.log('WebSocket connected.');
-        ws.onclose = () => console.log('WebSocket disconnected. Attempting reconnect...');
+        ws.onopen = () => {
+            console.log('WebSocket connected.');
+            setReconnectAttempts(0);
+        };
+        ws.onclose = (event) => {
+            console.log('WebSocket disconnected.');
+            if (!event.wasClean && reconnectAttempts < maxReconnectAttempts) {
+                const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+                console.log(`Attempting reconnect in ${delay}ms...`);
+                setTimeout(() => {
+                    setReconnectAttempts(prev => prev + 1);
+                    connect();
+                }, delay);
+            }
+        };
         ws.onerror = (error) => console.error('WebSocket error:', error);
 
         ws.onmessage = (event) => {
             try {
-                // Parsing e dispatching del messaggio al gestore centrale
                 const message = JSON.parse(event.data) as ServerWsMessage<any>;
                 handleWsMessage(message);
             } catch (e) {
                 console.error('Failed to parse incoming WS message:', event.data, e);
             }
         };
+    }, [handleWsMessage, token, reconnectAttempts, maxReconnectAttempts]);
 
-        // Cleanup al dismount del componente o quando le dipendenze cambiano
+    useEffect(() => {
+        if (token && !socket) {
+            connect();
+        }
+    }, [token, socket, connect]);
+
+    useEffect(() => {
         return () => {
-            console.log('Closing WebSocket connection.');
-            ws.close();
+            if (socket) {
+                socket.close();
+            }
         };
-
-    }, [handleWsMessage, token]);
+    }, [socket]);
 
     return socket;
 };
@@ -94,43 +116,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [messages, setMessages] = useState<MessageDAO[]>([]);
     const [invites, setInvites] = useState<InviteDAO[]>([]);
 
+    // Ref per stabilizzare selectedChat nel callback WS
+    const selectedChatRef = useRef<ChatDAO | null>(null);
+
     // STATI DI CARICAMENTO
     const [loadingChats, setLoadingChats] = useState(false);
     const [loadingMessages, setLoadingMessages] = useState(false);
 
+
     // Gestione della connessione WS
-    // Si usa useCallback per stabilizzare la funzione di gestione dei messaggi
+    // Hook migliorato con backoff di riconnessione e uso di ref per selectedChat
     const handleWsMessage = useCallback((msg: ServerWsMessage<any>) => {
         const { type, payload } = msg;
 
         switch (type) {
-            case 'NEW_MESSAGE':
+            case 'NEW_MESSAGE': {
                 const newMessage = payload as MessageDAO;
 
-                // 1. Aggiorna la lista messaggi SOLO se l'utente è in quella chat
-                if (selectedChat?.id === newMessage.chat_id) {
+                // Aggiorna la lista messaggi SOLO se l'utente è in quella chat
+                if (selectedChatRef.current?.id === newMessage.chat_id) {
                     setMessages((prev) => [...prev, newMessage]);
                 }
 
-                // 2. Aggiorna la lista chat (sposta in cima)
+                // Aggiorna la lista chat (sposta in cima)
                 setChats((prevChats) => {
                     let updatedChats = prevChats.filter(c => c.id !== newMessage.chat_id);
                     const chatToUpdate = prevChats.find(c => c.id === newMessage.chat_id);
 
                     if (chatToUpdate) {
                         const newChat: ChatDAO = { ...chatToUpdate, last_message_at: newMessage.sent_at, last_message_preview: newMessage.content };
-                        // Inserisce la chat aggiornata in cima
                         updatedChats = [newChat, ...updatedChats];
                     }
 
-                    // Riordina per last_message_at (il più recente in cima)
-                    return updatedChats.sort((a, b) =>
-                        (b.last_message_at || '').localeCompare(a.last_message_at || '')
-                    );
+                    return updatedChats.sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || ''));
                 });
 
-                // Opzionale: notifiche per messaggi in chat non selezionate
-                if (selectedChat?.id !== newMessage.chat_id) {
+                // Notification for messages in chats not currently selected
+                if (selectedChatRef.current?.id !== newMessage.chat_id) {
+                    // try to resolve sender username for a friendlier toast
                     getUsernameFromUserId(newMessage.sender_id).then(username => {
                         toast(`New message from ${username}`, { icon: '💬' });
                     }).catch(() => {
@@ -139,56 +162,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     });
                 }
                 break;
+            }
 
-            case 'NEW_CHAT':
+            case 'NEW_CHAT': {
                 const newChat = payload as ChatDAO;
-                setChats(prev => [newChat, ...prev].sort((a, b) =>
-                    (b.last_message_at || '').localeCompare(a.last_message_at || '')
-                ));
-                toast.success("You have been added to a new chat!");
+                setChats(prev => [newChat, ...prev].sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || '')));
+                toast.success('You have been added to a new chat!');
                 break;
+            }
 
-            case 'NEW_INVITE':
+            case 'NEW_INVITE': {
                 try {
                     const newInvite = payload as InviteDAO;
-                    let added = false;
-                    setInvites(prev => {
-                        // Check if invite already exists
-                        if (prev.some(inv => inv.id === newInvite.id)) {
-                            return prev; // Already exists, no change
-                        }
-                        added = true;
-                        return [newInvite, ...prev];
-                    });
-                    if (added) {
-                        // Prefer server-provided username, otherwise try resolving it via API
-                        const provided = (newInvite as any).sender_username;
-                        if (provided) {
-                            toast(`New invite from ${provided}`, { icon: '📨' });
-                        } else if (newInvite.sender_id != null) {
-                            // async resolve and toast when available; fallback to id on error
-                            getUsernameFromUserId(newInvite.sender_id)
-                                .then(name => toast(`New invite from ${name}`, { icon: '📨' }))
-                                .catch(() => toast(`New invite from ${newInvite.sender_id}`, { icon: '📨' }));
-                        } else {
-                            // sender_id is missing/null, show a generic fallback
-                            toast(`New invite from Unknown`, { icon: '📨' });
-                        }
+                    setInvites(prev => [newInvite, ...prev]);
+                    // Prefer server-provided username, otherwise resolve via API
+                    const provided = (newInvite as any).sender_username;
+                    if (provided) {
+                        toast(`New invite from ${provided}`, { icon: '📨' });
+                    } else if (newInvite.sender_id != null) {
+                        getUsernameFromUserId(newInvite.sender_id).then(name => {
+                            toast(`New invite from ${name}`, { icon: '📨' });
+                        }).catch(() => {
+                            toast('New invite received', { icon: '📨' });
+                        });
+                    } else {
+                        toast('New invite received', { icon: '📨' });
                     }
                 } catch (err) {
                     console.warn('Malformed NEW_INVITE payload', payload);
                 }
                 break;
+            }
 
             case 'CHAT_UPDATED':
-                // Logica per gestire altri aggiornamenti, es. un messaggio letto
-                // (Non implementato in dettaglio ma la struttura è qui)
+                // altri aggiornamenti
                 break;
 
             default:
                 console.warn(`Unknown WS message type: ${type}`);
         }
-    }, [selectedChat, chats]);
+    }, [chats]);
 
     // Avvia la connessione WebSocket (ricrea la connessione quando cambia il token)
     const storedToken = localStorage.getItem('token');
@@ -200,9 +213,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLoadingChats(true);
         try {
             const fetchedChats = await getChats();
-            // Try to fetch a short preview (last message content) for each chat.
-            // This is optional and best-effort: failures won't block chat list rendering.
-            const withPreview = await Promise.all(fetchedChats.map(async (c) => {
+            // Enrich chats with last_message_preview when possible
+            const enrich = async (chatsToEnrich: typeof fetchedChats) => {
+                return await Promise.all(chatsToEnrich.map(async (c) => {
+                    try {
+                        const msgs = await getChatMessages(c.id);
+                        const last = msgs.length ? msgs[msgs.length - 1] : null;
+                        return { ...c, last_message_preview: last ? last.content : null };
+                    } catch (err) {
+                        return { ...c, last_message_preview: null };
+                    }
+                }));
+            };
+
+            const withPreview = await enrich(fetchedChats);
+            const sortedChats = withPreview.sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || ''));
+            setChats(sortedChats);
+        } catch (err: any) {
+            toast.error(err?.message || "Failed to load chats.");
+        } finally {
+            setLoadingChats(false);
+        }
+    }, [user]);
+
+    // Refresh chats helper exposed to consumers: fetch chats and enrich previews
+    const refreshChats = useCallback(async () => {
+        if (!user) return;
+        try {
+            const fetchedChats = await getChats();
+            const enriched = await Promise.all(fetchedChats.map(async (c) => {
                 try {
                     const msgs = await getChatMessages(c.id);
                     const last = msgs.length ? msgs[msgs.length - 1] : null;
@@ -211,16 +250,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     return { ...c, last_message_preview: null };
                 }
             }));
-
-            // Ordina subito le chat per last_message_at
-            const sortedChats = withPreview.sort((a, b) =>
-                (b.last_message_at || '').localeCompare(a.last_message_at || '')
-            );
-            setChats(sortedChats);
-        } catch (err: any) {
-            toast.error(err?.message || "Failed to load chats.");
-        } finally {
-            setLoadingChats(false);
+            const sorted = enriched.sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || ''));
+            setChats(sorted);
+        } catch (err) {
+            console.warn('Failed to refresh chats', err);
         }
     }, [user]);
 
@@ -245,10 +278,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             const chatId = await acceptInviteApi(invite_id);
             // remove invite from list
             setInvites(prev => prev.filter(inv => inv.id !== invite_id));
-            // refresh chats and select the created chat
-            const updatedChats = await getChats();
-            setChats(updatedChats);
-            const created = updatedChats.find(c => c.id === chatId) ?? null;
+            // refresh chats (with previews) and select the created chat
+            await refreshChats();
+            const created = (await getChats()).find(c => c.id === chatId) ?? null;
             if (created) setSelectedChat(created);
             toast.success('Invite Accepted');
         } catch (err: any) {
@@ -380,6 +412,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 5. Gestione selezione chat (carica i messaggi)
     const handleSetSelectedChat = (chat: ChatDAO | null) => {
         setSelectedChat(chat);
+        selectedChatRef.current = chat; // Aggiorna il ref per il WS handler
         setMessages([]); // Svuota i messaggi vecchi
         if (chat) {
             fetchMessages(chat.id);
@@ -425,6 +458,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         sendMessage: handleSendMessage,
         fetchMessages,
         setChats,
+        refreshChats,
         fetchInvites,
         acceptInvite: handleAcceptInvite,
         rejectInvite: handleRejectInvite,

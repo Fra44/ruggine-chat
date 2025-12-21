@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use actix::{ Recipient, Actor, Addr, Running, AsyncContext, ActorContext };
 use serde::{ Deserialize, Serialize };
 use std::sync::{ Arc, Mutex };
+use std::time::Duration;
 use actix_web_actors::ws;
 
 /// the JSON payload sent through WebSocket to the connnected clients
@@ -65,6 +66,11 @@ impl Actor for WsConn {
 
         self.addr.lock().unwrap().connect(self.id, ctx.address().recipient());
 
+        // Start heartbeat to keep connection alive
+        ctx.run_interval(Duration::from_secs(30), |_, ctx| {
+            ctx.ping(b"");
+        });
+        
         // After connecting, try to deliver any pending invites that were created while the user
         // was offline. This fetches invites from the repository and sends a NEW_INVITE WS message
         // to the connected user for each pending invite. This ensures clients that connect
