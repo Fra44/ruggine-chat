@@ -11,7 +11,7 @@ import { toast } from 'react-hot-toast';
 import InviteModal from '../components/InviteModal';
 
 import type { User } from '../models/models';
-import type { ChatDAO, MessageDAO, LoginUserPayload, LoginResponse, ServerWsMessage, WsEventType, InviteDAO } from '../api/api';
+import type { ChatDAO, MessageDAO, LoginUserPayload, LoginResponse, ServerWsMessage, InviteDAO } from '../api/api';
 import { loginUser, getChats, getChatMessages, sendChatMessage, getInvites, acceptInvite as acceptInviteApi, rejectInvite as rejectInviteApi, getUsernameFromUserId } from '../api/api';
 
 interface AppContextType {
@@ -211,6 +211,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         }
                     }
 
+                    // Do not notify if the sender is the current logged-in user
+                    if (user && Number(newMessage.sender_id) === Number(user.user_id)) {
+                        break;
+                    }
+
                     const isGroup = chat?.chat_type && String(chat.chat_type).toLowerCase() === 'group';
                     if (isGroup) {
                         const chatName = chat?.group_name || `Chat ${newMessage.chat_id}`;
@@ -301,7 +306,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             default:
                 console.warn(`Unknown WS message type: ${type}`);
         }
-    }, [chats]);
+    }, [chats, user]);
 
     // Avvia la connessione WebSocket (ricrea la connessione quando cambia il token)
     const storedToken = localStorage.getItem('token');
@@ -412,7 +417,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             // refresh chats (with previews) and select the created chat
             await refreshChats();
             const created = (await getChats()).find(c => c.id === chatId) ?? null;
-            if (created) setSelectedChat(created);
+            if (created) {
+                setSelectedChat(created);
+                // keep ref in sync and load messages for the newly selected chat
+                selectedChatRef.current = created;
+                setMessages([]);
+                try {
+                    await fetchMessages(created.id);
+                } catch (_e) {
+                    // ignore fetch errors here; UI will show empty state
+                }
+            }
             toast.success('Invite Accepted');
         } catch (err: any) {
             toast.error(err?.message || 'Error accepting invite');
