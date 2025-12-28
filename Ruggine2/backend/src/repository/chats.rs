@@ -1,7 +1,6 @@
 use crate::schema::chats;
 use super::db::establish_connection;
-use diesel::{ connection, prelude::* };
-use serde::{ Deserialize, Serialize };
+use diesel::prelude::*;
 use super::args::{ CreatePrivateChat, CreateGroupChat };
 
 /**

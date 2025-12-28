@@ -1,24 +1,17 @@
-use std::{ fmt, path };
 use actix_web::{
     HttpRequest,
     HttpResponse,
     Responder,
     web,
-    body,
-    error::ResponseError,
     get,
-    http::{ StatusCode, header::ContentType },
     post,
-    put,
-    web::{ Data, Json, Path },
+    web::{ Json, Path },
 };
 use serde::{ Deserialize, Serialize };
 use crate::{
     AppState,
-    auth::{ Claims, extractor::extract_claims_from_request },
-    model::{ chats::is_user_part_of_chat, messages::{ map_message_to_dto, map_messages_to_dto } },
-    repository::args::{ CreateUser, LoginUser },
-    schema::chat_components::user_id,
+    auth::extractor::extract_claims_from_request,
+    model::{ chats::is_user_part_of_chat, messages::map_messages_to_dto },
 };
 
 #[derive(Debug, Serialize, Deserialize)]

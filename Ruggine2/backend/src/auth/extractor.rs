@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use actix_web::HttpResponse;
 use qstring::QString;
 
 /// Utility function to extract claims from the HttpRequest

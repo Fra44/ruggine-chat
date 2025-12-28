@@ -8,7 +8,7 @@ use actix_web::{
 use futures::future::LocalBoxFuture;
 use std::future::{ ready, Ready };
 
-use super::jwt::{ verify_token, Claims };
+use super::jwt::verify_token;
 
 /// Authentication middleware for protecting routes
 #[derive(Clone)]

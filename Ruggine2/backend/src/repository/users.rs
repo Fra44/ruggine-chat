@@ -1,6 +1,6 @@
 use crate::schema::users;
 use super::db::establish_connection;
-use diesel::{ connection, prelude::* };
+use diesel::prelude::*;
 use super::args::{ CreateUser };
 
 /**

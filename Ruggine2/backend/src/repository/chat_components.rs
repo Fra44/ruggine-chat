@@ -1,7 +1,6 @@
 use crate::{ repository::args::AddUserToChat, schema::chat_components };
 use super::db::establish_connection;
-use diesel::{ connection, prelude::* };
-use super::args::{};
+use diesel::prelude::*;
 
 #[derive(Insertable)]
 #[table_name = "chat_components"]

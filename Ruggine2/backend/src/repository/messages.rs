@@ -1,6 +1,6 @@
 use crate::schema::messages;
 use super::db::establish_connection;
-use diesel::{ connection, prelude::* };
+use diesel::prelude::*;
 use super::args::{ CreateMessage };
 
 /**

@@ -1,6 +1,6 @@
 use std::fmt;
 use actix_web::{
-    HttpResponse, Responder, body, error::ResponseError, get, http::{ StatusCode, header::ContentType }, post, put, web::{ Data, Json, Path, Query }
+    HttpResponse, Responder, body, error::ResponseError, get, http::{ StatusCode, header::ContentType }, post, web::{ Json, Path, Query }
 };
 use serde::{ Deserialize, Serialize };
 use crate::repository::args::{ CreateUser, LoginUser };

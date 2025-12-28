@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use actix::{ Recipient, Actor, Addr, Running, AsyncContext, ActorContext };
+use actix::{ Recipient, Actor, AsyncContext, ActorContext };
 use serde::{ Deserialize, Serialize };
 use std::sync::{ Arc, Mutex };
 use std::time::Duration;

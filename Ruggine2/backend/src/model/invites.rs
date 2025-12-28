@@ -3,13 +3,10 @@
 
 use serde::{ Serialize, Deserialize };
 
-use crate::{
-    repository::{
+use crate::repository::{
         args::CreateInvite,
-        invites::{ accept_invite, create_invite, get_invited_user_from_invite_id, reject_invite },
-    },
-    schema::chat_components::chat_id,
-};
+        invites::{ get_invited_user_from_invite_id, reject_invite },
+    };
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InviteDTO {
