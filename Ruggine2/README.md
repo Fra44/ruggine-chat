@@ -88,7 +88,7 @@ Questa contiene, sul lato sinistro, la lista (scorribile) delle chat a cui l'ute
 ---
 
 ## 2. Manuale del Progettista
-- **Diagramma ER** rappresentante la struttura del database utilizzato nell'applicazione:
+- **Diagramma ER**
 ```mermaid
 erDiagram
     USERS ||--o{ CHATS : "partecipa (Private)"
@@ -157,3 +157,4 @@ Vengono anche utilizzati WebSocket per la comunicazione in tempo reale tra clien
     - **Frontend (React + Vite)** :
         - React : libreria JavaScript 
         - Vite : fornisce un ambiente di sviluppo, con un semplice server che "trafferisce" i file al browser, trasformando al volo i file .jsx e/o .tsx in JavaScript standard, così da poter essere interpretati dal browser.
+
