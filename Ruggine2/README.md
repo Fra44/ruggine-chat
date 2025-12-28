@@ -88,7 +88,7 @@ Questa contiene, sul lato sinistro, la lista (scorribile) delle chat a cui l'ute
 ---
 
 ## 2. Manuale del Progettista
-- Diagramma ER rappresentente la struttura del database utilizzato nell'applicazione:
+- **Diagramma ER** rappresentante la struttura del database utilizzato nell'applicazione:
 ```mermaid
 erDiagram
     USERS ||--o{ CHATS : "partecipa (Private)"
@@ -140,3 +140,20 @@ erDiagram
         boolean accepted
     }
 ```
+- **Architettura dell'applicazione**
+L'architettura dell'applicazione è basata su un modello client-server, dove il frontend (client) comunica con il backend (server) tramite API REST.
+Il server è gestito utilizzando 3 layers principali:
+    - **Layer di Presentazione** : gestisce le richieste HTTP in entrata, instradandole ai controller appropriati.
+    - **Layer di Logica di Business** : contiene la logica principale dell'applicazione, elaborando i dati e applicando le regole di business.
+    - **Layer di Accesso ai Dati** : interagisce con il database per eseguire operazioni CRUD (Create, Read, Update, Delete) sui dati.
+Vengono anche utilizzati WebSocket per la comunicazione in tempo reale tra client e server, permettendo l'invio e la ricezione immediata dei messaggi e degli inviti ai gruppi.
+
+- **Tecnologie e Librerie Utilizzate**
+    - **Backend (Rust)** :
+        - Actix-web : framework web per Rust, utilizzato per gestire le richieste HTTP e i WebSocket.
+        - Diesel : ORM (Object-Relational Mapping) per interagire con il database PostgreSQL.
+        - Tokio : runtime asincrono per Rust, utilizzato per gestire operazioni asincrone.
+        - Serde : libreria per la serializzazione e deserializzazione di dati.
+    - **Frontend (React + Vite)** :
+        - React : libreria JavaScript 
+        - Vite : fornisce un ambiente di sviluppo, con un semplice server che "trafferisce" i file al browser, trasformando al volo i file .jsx e/o .tsx in JavaScript standard, così da poter essere interpretati dal browser.
