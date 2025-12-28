@@ -88,6 +88,7 @@ Questa contiene, sul lato sinistro, la lista (scorribile) delle chat a cui l'ute
 ---
 
 ## 2. Manuale del Progettista
+- Diagramma ER rappresentente la struttura del database utilizzato nell'applicazione:
 ```mermaid
 erDiagram
     USERS ||--o{ CHATS : "partecipa (Private)"
