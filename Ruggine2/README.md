@@ -9,9 +9,9 @@ L'applicazione è composta da un server (backend) interamente sviluppato in Rust
 ---
 
 ### Partecipanti
-- **Francesco Magno (S)**
-- **Francesco Papini (S)**
-- **Vito Piazzolla (S)**
+- **Francesco Magno (S346575)**
+- **Francesco Papini (S336426)**
+- **Vito Piazzolla (S347281)**
 - **Giacomo Scorza (S347145)**
 
 ---
@@ -79,5 +79,61 @@ Questa contiene, sul lato sinistro, la lista (scorribile) delle chat a cui l'ute
         - lista degli username degli utenti da invitare in un nuovo *gruppo* che sta per essere creato 
         - il *nome del gruppo* in caso venga inserita la lista di utenti
         
-        Inoltre, è possibile effettuare il logout tramite il tasto **Logout** a disposizione in questa sezione. 
-    - ***Lista Messaggi***
+        Inoltre, è possibile effettuare il logout tramite il tasto **Logout** a disposizione in questa sezione.  
+        Da questa pagina è possibile selezionare una chat.
+    - ***Lista Messaggi*** : mostra i messaggi della chat selezionata, ordinati temporalmente e suddivisi per data. Inoltre contiene un textbox in cui inserire il nuovo messaggio da inviare all'interno della chat selezionata tramite il tasto di invio posizionato a destra del textbox.
+    - ***Gestione Inviti***  
+    quando un utente entra nell'applicazione, verrano mostrati a schermo, uno ad uno, gli inviti ancora in attesa di essere accettati (o rifiutati). Se gli inviti vengono ignorati, verranno mostrati al prossimo refresh della homepage
+
+---
+
+## 2. Manuale del Progettista
+erDiagram
+    USERS ||--o{ CHATS : "partecipa (Private)"
+    USERS ||--o{ CHAT_COMPONENTS : "ha ruolo"
+    USERS ||--o{ MESSAGES : "invia"
+    USERS ||--o{ INVITES : "manda/riceve"
+    
+    CHATS ||--o{ CHAT_COMPONENTS : "composto da"
+    CHATS ||--o{ MESSAGES : "contiene"
+    CHATS ||--o{ INVITES : "riguarda"
+
+    USERS {
+        int id PK
+        string username
+        string hashed_password
+        timestamp created_at
+    }
+
+    CHATS {
+        int id PK
+        string chat_type
+        int user_id_1 FK
+        int user_id_2 FK
+        string group_name
+        timestamp created_at
+        timestamp last_message_at
+    }
+
+    CHAT_COMPONENTS {
+        int chat_id PK, FK
+        int user_id PK, FK
+        string role
+    }
+
+    MESSAGES {
+        int id PK
+        int chat_id FK
+        int sender_id FK
+        text content
+        timestamp sent_at
+    }
+
+    INVITES {
+        int id PK
+        int chat_id FK
+        int sender_id FK
+        int receiver_id FK
+        timestamp sent_at
+        boolean accepted
+    }
