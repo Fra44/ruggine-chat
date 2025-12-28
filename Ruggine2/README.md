@@ -88,6 +88,7 @@ Questa contiene, sul lato sinistro, la lista (scorribile) delle chat a cui l'ute
 ---
 
 ## 2. Manuale del Progettista
+```mermaid
 erDiagram
     USERS ||--o{ CHATS : "partecipa (Private)"
     USERS ||--o{ CHAT_COMPONENTS : "ha ruolo"
@@ -137,3 +138,4 @@ erDiagram
         timestamp sent_at
         boolean accepted
     }
+```
