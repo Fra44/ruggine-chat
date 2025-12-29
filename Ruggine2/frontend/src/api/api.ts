@@ -434,6 +434,8 @@ export interface InviteDAO {
     receiver_id: number | null;
     accepted: boolean | null;
     sent_at: string;
+    sender_username?: string;
+    group_name?: string;
 }
 
 
@@ -455,6 +457,8 @@ function convertToInviteDAO(dto: any): InviteDAO | null {
         receiver_id: dto.receiver_id,
         accepted: dto.accepted,
         sent_at: dto.sent_at,
+        sender_username: dto.sender_username,
+        group_name: dto.group_name,
     } as InviteDAO;
 }
 

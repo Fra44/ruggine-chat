@@ -27,7 +27,7 @@ export default function HomePage() {
         setSelectedChat, // Funzione per selezionare la chat
         logout, // Funzione di logout
         // sendMessage, // Se volessi implementare la logica qui
-        setChats, // <--- aggiunto dal context
+        //setChats, // <--- aggiunto dal context
         refreshChats
     } = useAppContext(); // Otteniamo tutti gli stati e le azioni dal Context
 

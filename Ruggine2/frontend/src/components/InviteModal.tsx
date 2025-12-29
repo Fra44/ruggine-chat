@@ -4,7 +4,7 @@ import { useAppContext } from '../context/AppContext';
 import { getUsernameFromUserId } from '../api/api';
 
 export default function InviteModal() {
-    const { invites, acceptInvite, rejectInvite, chats } = useAppContext();
+    const { invites, acceptInvite, rejectInvite } = useAppContext();
     const [show, setShow] = useState(false);
     const [currentInvite, setCurrentInvite] = useState<any | null>(null);
     const [senderName, setSenderName] = useState<string | null>(null);
@@ -57,14 +57,8 @@ export default function InviteModal() {
                 if (currentInvite.group_name) {
                     if (mounted) setGroupName(currentInvite.group_name);
                 } else {
-                    // prefer local chats state (fast) to avoid extra API calls and delays
-                    const found = chats?.find(c => c.id === Number(currentInvite.chat_id));
-                    if (found) {
-                        if (mounted) setGroupName(found.group_name ?? `Chat ${currentInvite.chat_id}`);
-                    } else {
-                        // fallback to immediate placeholder; avoid long fetch here
-                        if (mounted) setGroupName(`Chat ${currentInvite.chat_id}`);
-                    }
+                    // fallback to chat id
+                    if (mounted) setGroupName(`Chat ${currentInvite.chat_id}`);
                 }
             } catch (_err) {
                 if (mounted) setGroupName(`Chat ${currentInvite.chat_id}`);

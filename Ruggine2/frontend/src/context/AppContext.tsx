@@ -367,39 +367,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!user) return;
         try {
             const fetched = await getInvites();
-            // Enrich invites with group_name (prefer local `chats` state to avoid extra API calls)
-            let chatMap = new Map<number, any>();
-            if (chats && chats.length > 0) {
-                chats.forEach(c => chatMap.set(c.id, c));
-            } else {
-                try {
-                    const fetchedChats = await getChats();
-                    fetchedChats.forEach(c => chatMap.set(c.id, c));
-                } catch (err) {
-                    console.warn('fetchInvites: failed to fetch chats for enrichment', err);
-                }
-            }
-
-            const enriched = await Promise.all(fetched.map(async (inv) => {
-                const out = { ...inv } as any;
-                if (!out.group_name) {
-                    const found = chatMap.get(Number(inv.chat_id));
-                    if (found) out.group_name = found.group_name ?? `Chat ${inv.chat_id}`;
-                }
-                if (!out.sender_username && inv.sender_id != null) {
-                    try {
-                        out.sender_username = await getUsernameFromUserId(inv.sender_id);
-                    } catch (_err) {
-                        // leave as undefined -> InviteModal will fallback
-                    }
-                }
-                return out as InviteDAO;
-            }));
-
             setInvites(prev => {
                 // Merge without duplicates
                 const existingIds = new Set(prev.map(inv => inv.id));
-                const newInvites = enriched.filter(inv => !existingIds.has(inv.id));
+                const newInvites = fetched.filter(inv => !existingIds.has(inv.id));
                 // update ref
                 newInvites.forEach(n => invitesRef.current.add(n.id));
                 return [...prev, ...newInvites];
