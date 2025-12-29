@@ -166,7 +166,7 @@ pub struct SearchQuery {
 pub async fn search_users_by_prefix(q: Query<SearchQuery>) -> impl Responder {
     let prefix = q.prefix.clone();
     let limit = q.limit.unwrap_or(5) as i64;
-    match crate::repository::users::search_usernames_by_prefix(&prefix, limit) {
+    match crate::repository::users::search_users_by_prefix(&prefix, limit) {
         Ok(list) => Ok(HttpResponse::Ok().json(list)),
         Err(e) => {
             log::error!("search_users_by_prefix error: {}", e);

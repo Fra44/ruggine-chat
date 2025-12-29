@@ -11,7 +11,8 @@ import { useNavigate } from "react-router-dom"; // Mantenuto solo per navigate
 
 import { useAppContext } from "../context/AppContext"; // Importiamo il Context
 import type { ChatDAO } from "../api/api";
-import { createNewPrivateChat, createNewGroupChat, getChats, getUserIdByUsername, inviteUser, getUsersByPrefix } from "../api/api";
+import type { User } from "../models/models";
+import { createNewPrivateChat, createNewGroupChat, getChats, getUserIdByUsername, inviteUser, searchUsersByPrefix } from "../api/api";
 
 // Rimosso: interface HomePageProps { user: User | null; }
 
@@ -214,12 +215,12 @@ export default function HomePage() {
                                                             if (token.length >= 1) {
                                                                 const reqId = ++requestIdRef.current;
                                                                 debounceRef.current = window.setTimeout(() => {
-                                                                    getUsersByPrefix(token, 5)
-                                                                        .then(list => {
+                                                                    searchUsersByPrefix(token, 5)
+                                                                        .then((list: User[]) => {
                                                                             if (requestIdRef.current === reqId) {
-                                                                                const filtered = list.filter(x => x.toLowerCase() !== token.toLowerCase());
-                                                                                const withoutSelf = filtered.filter(x => !(user && x.toLowerCase() === user.username.toLowerCase()));
-                                                                                setSuggestions(withoutSelf);
+                                                                                const filtered = list.filter(x => x.username.toLowerCase() !== token.toLowerCase());
+                                                                                const withoutSelf = filtered.filter(x => !(user && x.username.toLowerCase() === user.username.toLowerCase()));
+                                                                                setSuggestions(withoutSelf.map(x => x.username));
                                                                                 setShowSuggestions(true);
                                                                                 setActiveSuggestion(0);
                                                                             }

@@ -22,7 +22,7 @@ export const ChatList: React.FC<ChatListProps> = ({ chats, selectedChatId, onSel
             return chat.group_name || `Group Chat ${chat.id}`;
         } else if (chat.chat_type === 'PRIVATE') {
             // For private chats, show the other user's name
-            if (chat.user_id_1 === user?.user_id) {
+            if (chat.user_id_1 === user?.id) {
                 return chat.username_2 || `Private Chat ${chat.id}`;
             } else {
                 return chat.username_1 || `Private Chat ${chat.id}`;

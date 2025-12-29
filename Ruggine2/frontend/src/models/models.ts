@@ -2,7 +2,7 @@
  * User model interface
  */
 export interface User {
-    user_id: number;
+    id: number;
     username: string;
 }
 

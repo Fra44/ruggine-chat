@@ -11,8 +11,8 @@ import { toast } from 'react-hot-toast';
 import InviteModal from '../components/InviteModal';
 
 import type { User } from '../models/models';
-import type { ChatDAO, MessageDAO, LoginUserPayload, LoginResponse, ServerWsMessage, InviteDAO } from '../api/api';
-import { loginUser, getChats, getChatMessages, sendChatMessage, getInvites, acceptInvite as acceptInviteApi, rejectInvite as rejectInviteApi, getUsernameFromUserId } from '../api/api';
+import type { ChatDAO, MessageDAO, LoginUserPayload, LoginResponse, ServerWsMessage, InviteDAO, ChatComponentDAO } from '../api/api';
+import { loginUser, getChats, getChatMessages, sendChatMessage, getInvites, acceptInvite as acceptInviteApi, rejectInvite as rejectInviteApi, getUsernameFromUserId, getChatComponents } from '../api/api';
 
 interface AppContextType {
     user: User | null;
@@ -22,6 +22,7 @@ interface AppContextType {
     loadingChats: boolean;
     loadingMessages: boolean;
     invites: InviteDAO[];
+    chatComponents: ChatComponentDAO[];
 
     // Azioni esposte
     login: (payload: LoginUserPayload) => Promise<LoginResponse>;
@@ -34,6 +35,7 @@ interface AppContextType {
     refreshChats: () => Promise<void>;
     acceptInvite: (invite_id: number) => Promise<void>;
     rejectInvite: (invite_id: number) => Promise<void>;
+    fetchChatComponents: (chatId: number) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -115,6 +117,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const [selectedChat, setSelectedChat] = useState<ChatDAO | null>(null);
     const [messages, setMessages] = useState<MessageDAO[]>([]);
     const [invites, setInvites] = useState<InviteDAO[]>([]);
+    const [chatComponents, setChatComponents] = useState<ChatComponentDAO[]>([]);
 
     // Ref to track invite ids to avoid races between fetch and WS events
     const invitesRef = useRef<Set<number>>(new Set());
@@ -212,7 +215,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     }
 
                     // Do not notify if the sender is the current logged-in user
-                    if (user && Number(newMessage.sender_id) === Number(user.user_id)) {
+                    if (user && Number(newMessage.sender_id) === Number(user.id)) {
                         break;
                     }
 
@@ -417,6 +420,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }, []);
 
+    const fetchChatComponents = useCallback(async (chatId: number) => {
+        if (!user) return;
+        try {
+            const components = await getChatComponents(chatId);
+            setChatComponents(components);
+        } catch (err: any) {
+            console.warn('Failed to fetch chat components', err);
+        }
+    }, [user]);
+
     // Caricamento messaggi per la chat selezionata
     const fetchMessages = useCallback(async (chatId: number) => {
         setLoadingMessages(true);
@@ -469,7 +482,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         const id = Number(payload.user_id ?? payload.sub ?? payload.uid ?? null);
                         const username = payload.username ?? payload.user ?? payload.name ?? null;
                         if (!Number.isNaN(id) && username) {
-                            setUser({ user_id: id, username });
+                            setUser({ id: id, username });
                             return;
                         }
                     }
@@ -501,8 +514,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const login = async (payload: LoginUserPayload): Promise<LoginResponse> => {
         const loginRes = await loginUser(payload);
         localStorage.setItem("token", loginRes.token);
-        // Assicurati che l'ID utente sia gestito correttamente
-        setUser({ user_id: loginRes.user_id, username: payload.username });
+        // Decodifica il token per ottenere i dati utente usando la stessa funzione di checkAuth
+        const decodePayload = (t: string) => {
+            const parts = t.split('.');
+            if (parts.length < 2) return null;
+            const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+            const pad = b64.length % 4;
+            const padded = pad ? b64 + '='.repeat(4 - pad) : b64;
+            const json = atob(padded);
+            return JSON.parse(json);
+        };
+        const decoded = decodePayload(loginRes.token);
+        if (decoded) {
+            const id = Number(decoded.user_id ?? decoded.sub ?? decoded.uid ?? null);
+            const username = decoded.username ?? decoded.user ?? decoded.name ?? payload.username;
+            if (!Number.isNaN(id) && username) {
+                setUser({ id, username });
+            }
+        }
         return loginRes;
     };
 
@@ -531,8 +560,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedChat(chat);
         selectedChatRef.current = chat; // Aggiorna il ref per il WS handler
         setMessages([]); // Svuota i messaggi vecchi
+        setChatComponents([]); // Svuota i componenti vecchi
         if (chat) {
             fetchMessages(chat.id);
+            if (chat.chat_type === 'GROUP') {
+                fetchChatComponents(chat.id);
+            }
         }
     };
 
@@ -579,6 +612,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         fetchInvites,
         acceptInvite: handleAcceptInvite,
         rejectInvite: handleRejectInvite,
+        chatComponents,
+        fetchChatComponents,
     };
 
     return (

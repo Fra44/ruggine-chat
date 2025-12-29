@@ -144,6 +144,12 @@ async fn main() -> Result<()> {
                     .service(api::invites::accept_invite) // in api.ts
                     .service(api::invites::reject_invite) // in api.ts
             )
+            .service(
+                web
+                    ::scope("/api/chat_components")
+                    .wrap(auth_middleware.clone())
+                    .service(api::chat_components::get_chat_components_handler)
+            )
             .service(web::scope("/ws").route("/", web::get().to(ws_route)))
     })
         .bind(("127.0.0.1", 8080))?

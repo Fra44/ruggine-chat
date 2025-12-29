@@ -2,6 +2,7 @@
 /// the request payloads and response structures.
 
 import { toApiError } from "../models/models";
+import type { User } from '../models/models';
 
 const BASE_URL = 'http://localhost:8080/api';
 
@@ -161,9 +162,9 @@ export const getUserIdByUsername = async (username: string): Promise<number> => 
 }
 
 /**
- * Search users by prefix (returns array of usernames)
+ * Search users by prefix (returns array of User objects)
  */
-export const getUsersByPrefix = async (prefix: string, limit = 5): Promise<string[]> => {
+export const searchUsersByPrefix = async (prefix: string, limit = 5): Promise<User[]> => {
     try {
         const url = new URL(`${BASE_URL}/users/search`);
         url.searchParams.append('prefix', prefix);
@@ -180,7 +181,7 @@ export const getUsersByPrefix = async (prefix: string, limit = 5): Promise<strin
         }
         const data = await res.json();
         if (!Array.isArray(data)) throw new Error('Invalid response');
-        return data as string[];
+        return data as User[];
     } catch (error) {
         console.error('Error searching users by prefix', error);
         throw error;
@@ -595,4 +596,40 @@ export interface ServerWsMessage<T> {
     type: WsEventType;
     payload: T; 
 }
+
+/// CHAT COMPONENTS
+
+/**
+ * Data Access Object representing a Chat Component as received from the backend
+ */
+export interface ChatComponentDAO {
+    chat_id: number;
+    user_id: number;
+    role: string;
+    username?: string;
+}
+
+/**
+ * function to call the backend API endpoint for getting chat components for a chat
+ * @param chatId: number - the ID of the chat
+ * @returns array of ChatComponentDAO objects
+ */
+export const getChatComponents = async (chatId: number): Promise<ChatComponentDAO[]> => {
+    try {
+        const res = await authFetch(`${BASE_URL}/chat_components/${chatId}/`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (!res.ok) {
+            throw await toApiError(res);
+        }
+        return await res.json();
+    } catch (error) {
+        console.error("Error fetching chat components:", error);
+        throw error;
+    }
+};
 

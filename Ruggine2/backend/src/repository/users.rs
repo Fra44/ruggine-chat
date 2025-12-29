@@ -17,11 +17,13 @@ pub struct NewUser<'a> {
  * Struct representing a user retrieved from the database.
  * (used also to MODIFY an existing user)
  */
-#[derive(Queryable, Debug, AsChangeset)]
+#[derive(Queryable, Debug, AsChangeset, serde::Serialize)]
 pub struct User {
     pub id: i32,
     pub username: String,
+    #[serde(skip)]
     pub created_at: Option<chrono::NaiveDateTime>, 
+    #[serde(skip)]
     pub hashed_password: String,
 }
 
@@ -97,18 +99,17 @@ pub fn find_user_by_id(target_id: i32) -> Option<User> {
     result
 }
 
-/// Search for usernames by prefix (case-insensitive) and return up to `limit` results.
-pub fn search_usernames_by_prefix(prefix: &str, limit_results: i64) -> Result<Vec<String>, String> {
+/// Search for users by username prefix (case-insensitive) and return up to `limit` results.
+pub fn search_users_by_prefix(prefix: &str, limit_results: i64) -> Result<Vec<User>, String> {
     use crate::schema::users::dsl::*;
     let mut connection = establish_connection();
 
     let pattern = format!("{}%", prefix);
     let results = users
-        .select(username)
         .filter(username.ilike(pattern))
         .limit(limit_results)
-        .load::<String>(&mut connection)
-        .map_err(|e| format!("DB error searching usernames: {}", e))?;
+        .load::<User>(&mut connection)
+        .map_err(|e| format!("DB error searching users: {}", e))?;
 
     Ok(results)
 }

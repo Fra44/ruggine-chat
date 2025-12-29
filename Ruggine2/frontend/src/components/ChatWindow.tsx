@@ -1,12 +1,13 @@
 // components/ChatWindow.tsx
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Card, Spinner } from 'react-bootstrap';
+import { Card, Spinner, Button } from 'react-bootstrap';
 // Rimosso: import { type ChatDAO, type MessageDAO, type SendMessagePayload, sendChatMessage } from '../api/api';
 import { type ChatDAO, type MessageDAO, getUsernameFromUserId } from '../api/api';
 import { formatToUTCPlus1, chatMessageDateHeader } from '../utils/time';
 import { type User } from '../models/models';
 import { useAppContext } from '../context/AppContext'; // Importiamo il Context
+import InviteUserModal from './InviteUserModal';
 
 interface ChatWindowProps {
     chat: ChatDAO | null;
@@ -22,9 +23,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
     const [messageText, setMessageText] = React.useState<string>("");
     const [usernames, setUsernames] = useState<Record<number, string>>({}); // Cache per username
     const [isSending, setIsSending] = useState(false); // Stato per disabilitare il bottone durante l'invio
+    const [showInviteModal, setShowInviteModal] = useState(false);
 
     // Otteniamo la funzione di invio messaggio dal Context
-    const { sendMessage } = useAppContext();
+    const { sendMessage, chatComponents } = useAppContext();
 
     const handleSendMessage = async () => {
         if (!chat || messageText.trim() === "" || isSending) return;
@@ -100,7 +102,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
             return chat.group_name || `Group Chat ${chat.id}`;
         } else if (chat.chat_type === 'PRIVATE') {
             // Per chat private, mostra il nome dell'altro utente
-            if (chat.user_id_1 === currentUser?.user_id) { // Usiamo currentUser.id (assumendo l'aggiornamento in models.ts)
+            if (chat.user_id_1 === currentUser?.id) { // Usiamo currentUser.id
                 return chat.username_2 || `Private Chat ${chat.id}`;
             } else {
                 return chat.username_1 || `Private Chat ${chat.id}`;
@@ -109,13 +111,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
         return `Chat ${chat.id}`;
     };
 
+    const isAdmin = (): boolean => {
+        if (chat?.chat_type !== 'GROUP') return false;
+        return chatComponents.some(comp => comp.user_id === currentUser?.id && comp.role === 'ADMIN');
+    };
+
     // ... (resto del codice JSX invariato)
     return (
         <div className="position-relative h-100" style={{ width: '100%', minWidth: 0 }}>
             <button type="button" className="btn-close position-absolute top-0 end-0 m-2" onClick={onClose} aria-label="Chiudi chat" style={{ zIndex: 10 }}></button>
             <Card className="chat-window-card h-100" style={{ width: '100%', height: '100%', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                <Card.Header className="chat-window-header">
+                <Card.Header className="chat-window-header d-flex justify-content-between align-items-center">
                     <h3>{getChatName()}</h3>
+                    {chat?.chat_type === 'GROUP' && isAdmin() && (
+                        <Button variant="primary" size="sm" onClick={() => setShowInviteModal(true)}>
+                            Invite Users
+                        </Button>
+                    )}
                 </Card.Header>
 
             <Card.Body ref={messagesContainerRef} className="chat-messages-container" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
@@ -141,7 +153,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                                     prevKey = key;
                                 }
 
-                                const isMyMessage = message.sender_id === currentUser.user_id;
+                                const isMyMessage = message.sender_id === currentUser.id;
                                 const username = usernames[message.sender_id];
                                 const senderLabel = username && username !== 'loading' ? username : null;
 
@@ -213,6 +225,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                 </button>
             </Card.Footer>
         </Card>
+        {chat && <InviteUserModal show={showInviteModal} onHide={() => setShowInviteModal(false)} chatId={chat.id} />}
         </div>
     );
 };
