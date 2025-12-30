@@ -24,10 +24,14 @@ function jsonHeaders() {
 }
 
 function uniqueUsername() {
-  // Always unique: include VU + ITER + timestamp + random
-  return `k6_${__VU}_${__ITER}_${Date.now()}_${Math.floor(
-    Math.random() * 1e9
-  )}`;
+  // fit DB constraint: username VARCHAR(25)
+  const vu = (__VU % 36).toString(36); // 1 char
+  const it = (__ITER % 1296).toString(36).padStart(2, "0"); // 2 chars
+  const t = (Date.now() % 0x10000000).toString(36).padStart(6, "0"); // 6 chars
+  const r = Math.floor(Math.random() * 0x1000)
+    .toString(36)
+    .padStart(3, "0"); // 3 chars
+  return `k6_${vu}${it}_${t}_${r}`;
 }
 
 export default function () {
