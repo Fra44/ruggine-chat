@@ -94,12 +94,18 @@ const useWebSocket = (handleWsMessage: (msg: ServerWsMessage<any>) => void, toke
     }, [token, socket, connect]);
 
     useEffect(() => {
-        if (socket && token) {
-            // If token changed, close old socket and reconnect
-            socket.close();
-            setSocket(null);
-            setReconnectAttempts(0);
-            connect();
+        if (socket) {
+            if (token) {
+                // If token changed, close old socket and reconnect
+                socket.close();
+                setSocket(null);
+                setReconnectAttempts(0);
+                connect();
+            } else {
+                // If no token, close socket
+                socket.close();
+                setSocket(null);
+            }
         }
     }, [token]);
 
