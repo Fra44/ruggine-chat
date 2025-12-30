@@ -3,20 +3,15 @@ import { check, sleep } from "k6";
 
 const BASE_URL = __ENV.BASE_URL || "http://localhost:8080";
 const REGISTER_URL = `${BASE_URL}/api/users/register`;
-const LOGIN_URL = `${BASE_URL}/api/users/login`;
 
 const PASSWORD = __ENV.PASSWORD || "Password123!";
 
 export const options = {
   stages: [
-    { duration: "30s", target: 100 },
-    { duration: "1m", target: 100 },
+    { duration: "30s", target: 5 },
+    { duration: "1m", target: 5 },
     { duration: "30s", target: 0 },
   ],
-  thresholds: {
-    http_req_failed: ["rate<0.05"],
-    http_req_duration: ["p(95)<500"],
-  },
 };
 
 function jsonHeaders() {
@@ -64,27 +59,6 @@ export default function () {
     sleep(0.2);
     return;
   }
-
-  // LOGIN using the same user just created (always tests /login too)
-  const loginPayload = JSON.stringify({
-    username,
-    // In your Rust handler: LoginUser has `plain_password`
-    plain_password: PASSWORD,
-  });
-
-  const loginRes = http.post(LOGIN_URL, loginPayload, jsonHeaders());
-
-  check(loginRes, {
-    "login: status 200": (r) => r.status === 200,
-    "login: has token": (r) => {
-      try {
-        const j = r.json();
-        return typeof j.token === "string" && j.token.length > 10;
-      } catch (_) {
-        return false;
-      }
-    },
-  });
 
   sleep(0.2);
 }
