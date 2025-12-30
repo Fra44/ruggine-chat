@@ -224,6 +224,12 @@ export interface MessageDAO {
     chat_id: number;
 }
 
+export interface ChatMemberDAO {
+    user_id: number;
+    username: string;
+    status: string; // "member" or "invited"
+}
+
 
 /**
  * Function to convert raw DTO from the backend into ChatDAO object.
@@ -629,6 +635,30 @@ export const getChatComponents = async (chatId: number): Promise<ChatComponentDA
         return await res.json();
     } catch (error) {
         console.error("Error fetching chat components:", error);
+        throw error;
+    }
+};
+
+/**
+ * Function to get members and pending invites for a chat
+ * @param chatId: number - the ID of the chat
+ * @returns array of ChatMemberDAO objects
+ */
+export const getChatMembers = async (chatId: number): Promise<ChatMemberDAO[]> => {
+    try {
+        const res = await authFetch(`${BASE_URL}/chats/members/${chatId}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (!res.ok) {
+            throw await toApiError(res);
+        }
+        return await res.json();
+    } catch (error) {
+        console.error("Error fetching chat members:", error);
         throw error;
     }
 };

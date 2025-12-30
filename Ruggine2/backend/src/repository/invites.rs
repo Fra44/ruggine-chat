@@ -172,6 +172,24 @@ pub fn get_invites_for_user(target_user_id: i32) -> Result<Vec<Invite>, String> 
     }
 }
 
+/// Repository level function that retrieves all pending invites for a specific chat.
+/// Returns Ok(Vec<Invite>) if successful, Err(String) on DB error.
+pub fn get_pending_invites_for_chat(chat_id_param: i32) -> Result<Vec<Invite>, String> {
+    println!("Retrieving pending invites for chat ID {:?}", chat_id_param);
+
+    use crate::schema::invites::dsl::*;
+
+    let connection = &mut establish_connection();
+
+    let results = invites
+        .filter(chat_id.eq(chat_id_param).and(accepted.is_null()))
+        .load::<Invite>(connection);
+    match results {
+        Err(e) => Err(format!("Error loading pending invites for chat {}: {}", chat_id_param, e)),
+        Ok(results) => Ok(results),
+    }
+}
+
 /// Repository level function that retrieves a single invite by its ID.
 /// Returns Ok(Some(invite)) if found, Ok(None) if not found, Err(String) on DB error.
 pub fn get_invite_by_id(invite_id_param: i32) -> Result<Option<Invite>, String> {

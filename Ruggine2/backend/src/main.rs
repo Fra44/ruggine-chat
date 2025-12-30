@@ -128,6 +128,7 @@ async fn main() -> Result<()> {
                     .service(api::chats::get_chats) // in api.ts
                     .service(api::chats::new_private_chat) // in api.ts
                     .service(api::chats::new_group_chat) // in api.ts
+                    .service(api::chats::get_chat_members) // new endpoint
                     .service(api::messages::get_chat_messages) // in api.ts
                     .service(api::messages::post_chat_message) // in api.ts
             )

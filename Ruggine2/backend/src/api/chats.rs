@@ -111,3 +111,34 @@ pub async fn new_private_chat(
         Err(e) => { HttpResponse::Unauthorized().body(e) }
     }
 }
+
+/// API endpoint to get members and pending invites for a chat
+#[get("/members/{chat_id}")]
+pub async fn get_chat_members(req: HttpRequest, path: Path<i32>) -> impl Responder {
+    let chat_id: i32 = path.into_inner();
+    let claims = extract_claims_from_request(&req);
+    match claims {
+        Ok(claims) => {
+            let user_id: i32 = claims.sub.parse().unwrap_or(0);
+            if user_id == 0 {
+                return HttpResponse::Unauthorized().body("USER_NOT_AUTHENTICATED");
+            }
+            // Check if user is part of the chat
+            match crate::model::chats::is_user_part_of_chat(user_id, chat_id) {
+                Ok(is_part) => {
+                    if !is_part {
+                        return HttpResponse::Forbidden().body("USER_NOT_PART_OF_CHAT");
+                    }
+                }
+                Err(e) => return HttpResponse::InternalServerError().body(e),
+            }
+            // Get members and invites
+            let members = crate::model::chats::get_chat_members_and_invites(chat_id);
+            match members {
+                Ok(members) => HttpResponse::Ok().json(members),
+                Err(e) => HttpResponse::InternalServerError().body(e),
+            }
+        }
+        Err(err_msg) => HttpResponse::Unauthorized().body(err_msg),
+    }
+}

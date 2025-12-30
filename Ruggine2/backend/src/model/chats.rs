@@ -291,3 +291,43 @@ pub fn get_users_in_chat(chat_id: i32) -> Result<Vec<i32>, String> {
         Err(err_str) => { Err(err_str) }
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatMemberDTO {
+    pub user_id: i32,
+    pub username: String,
+    pub status: String, // "member" or "invited"
+}
+
+/// Function to get all members and pending invites for a chat
+pub fn get_chat_members_and_invites(chat_id: i32) -> Result<Vec<ChatMemberDTO>, String> {
+    let mut members: Vec<ChatMemberDTO> = Vec::new();
+
+    // Get active members
+    let components = crate::model::chat_components::get_chat_components(chat_id);
+    for comp in components {
+        if let Some(username) = comp.username {
+            members.push(ChatMemberDTO {
+                user_id: comp.user_id,
+                username,
+                status: "member".to_string(),
+            });
+        }
+    }
+
+    // Get pending invites
+    let pending_invites = crate::repository::invites::get_pending_invites_for_chat(chat_id)?;
+    for invite in pending_invites {
+        if let Some(receiver_id) = invite.receiver_id {
+            if let Some(user) = crate::repository::users::find_user_by_id(receiver_id) {
+                members.push(ChatMemberDTO {
+                    user_id: receiver_id,
+                    username: user.username,
+                    status: "invited".to_string(),
+                });
+            }
+        }
+    }
+
+    Ok(members)
+}

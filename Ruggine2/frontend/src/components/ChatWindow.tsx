@@ -3,11 +3,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Card, Spinner, Button } from 'react-bootstrap';
 // Rimosso: import { type ChatDAO, type MessageDAO, type SendMessagePayload, sendChatMessage } from '../api/api';
-import { type ChatDAO, type MessageDAO, getUsernameFromUserId } from '../api/api';
+import { type ChatDAO, type MessageDAO, type ChatMemberDAO, getUsernameFromUserId, getChatMembers } from '../api/api';
 import { formatToUTCPlus1, chatMessageDateHeader } from '../utils/time';
 import { type User } from '../models/models';
 import { useAppContext } from '../context/AppContext'; // Importiamo il Context
 import InviteUserModal from './InviteUserModal';
+import MembersList from './MembersList';
 
 interface ChatWindowProps {
     chat: ChatDAO | null;
@@ -24,6 +25,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
     const [usernames, setUsernames] = useState<Record<number, string>>({}); // Cache per username
     const [isSending, setIsSending] = useState(false); // Stato per disabilitare il bottone durante l'invio
     const [showInviteModal, setShowInviteModal] = useState(false);
+    const [showMembers, setShowMembers] = useState(false);
+    const [members, setMembers] = useState<ChatMemberDAO[]>([]);
+    const [loadingMembers, setLoadingMembers] = useState(false);
 
     // Otteniamo la funzione di invio messaggio dal Context
     const { sendMessage, chatComponents } = useAppContext();
@@ -48,6 +52,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
         }
     }
 
+    const handleToggleMembers = async () => {
+        if (showMembers) {
+            setShowMembers(false);
+        } else {
+            if (!chat) return;
+            setLoadingMembers(true);
+            try {
+                const membersData = await getChatMembers(chat.id);
+                setMembers(membersData);
+                setShowMembers(true);
+            } catch (error) {
+                console.error("Error loading members:", error);
+                // Puoi aggiungere un toast di errore qui
+            } finally {
+                setLoadingMembers(false);
+            }
+        }
+    }
+
     // Scorri in fondo quando i messaggi cambiano (solo il container dei messaggi,
     // così non si scrolla la scrollbar globale dell'app)
     useEffect(() => {
@@ -64,6 +87,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
 
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
+
+    // Reset showMembers when chat changes
+    useEffect(() => {
+        setShowMembers(false);
+        setMembers([]);
+    }, [chat]);
 
     // Recupera username per sender_id non cachati
     useEffect(() => {
@@ -123,14 +152,22 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
             <Card className="chat-window-card h-100" style={{ width: '100%', height: '100%', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 <Card.Header className="chat-window-header d-flex justify-content-between align-items-center">
                     <h3>{getChatName()}</h3>
-                    {chat?.chat_type === 'GROUP' && isAdmin() && (
-                        <Button variant="primary" size="sm" onClick={() => setShowInviteModal(true)}>
-                            Invite Users
-                        </Button>
-                    )}
+                    <div>
+                        {chat?.chat_type === 'GROUP' && (
+                            <Button variant="outline-secondary" size="sm" onClick={handleToggleMembers} className="me-2">
+                                {loadingMembers ? <Spinner as="span" animation="border" size="sm" /> : 'Members'}
+                            </Button>
+                        )}
+                        {chat?.chat_type === 'GROUP' && isAdmin() && (
+                            <Button variant="primary" size="sm" onClick={() => setShowInviteModal(true)}>
+                                Invite
+                            </Button>
+                        )}
+                    </div>
                 </Card.Header>
 
-            <Card.Body ref={messagesContainerRef} className="chat-messages-container" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+            {!showMembers && (
+                <Card.Body ref={messagesContainerRef} className="chat-messages-container" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                 {loading ? (
                     <div className="text-center mt-5" style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <Spinner animation="border" variant="light" />
@@ -202,6 +239,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                     </div>
                 )}
             </Card.Body>
+            )}
+
+            {showMembers && (
+                <Card.Body className="members-list position-relative" style={{ height: '100%', overflowY: 'auto' }}>
+                    <button type="button" className="btn-close position-absolute top-0 end-0 m-2" onClick={handleToggleMembers} aria-label="Close members list" style={{ zIndex: 10 }}></button>
+                    <h5 className="mt-3">Group Members</h5>
+                    {loadingMembers ? (
+                        <Spinner animation="border" />
+                    ) : (
+                        <MembersList members={members} />
+                    )}
+                </Card.Body>
+            )}
 
             {/* Area di input messaggio */}
             <Card.Footer className="message-input-area">
