@@ -663,3 +663,26 @@ export const getChatMembers = async (chatId: number): Promise<ChatMemberDAO[]> =
     }
 };
 
+/**
+ * Function to remove a member from a chat
+ * @param chatId: number - the ID of the chat
+ * @param userId: number - the ID of the user to remove
+ */
+export const removeChatMember = async (chatId: number, userId: number): Promise<void> => {
+    try {
+        const res = await authFetch(`${BASE_URL}/chats/members/${chatId}/${userId}`, {
+            method: "DELETE",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        if (!res.ok) {
+            throw await toApiError(res);
+        }
+    } catch (error) {
+        console.error("Error removing chat member:", error);
+        throw error;
+    }
+};
+

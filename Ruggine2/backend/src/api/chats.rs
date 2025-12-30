@@ -1,4 +1,4 @@
-use actix_web::{ HttpRequest, HttpResponse, Responder, get, post, web::{ self, Json } };
+use actix_web::{ HttpRequest, HttpResponse, Responder, get, post, delete, web::{ self, Json } };
 use serde::{ Deserialize, Serialize };
 use actix_web::web::Path;
 use crate::{ AppState, auth::extractor::extract_claims_from_request };
@@ -137,6 +137,46 @@ pub async fn get_chat_members(req: HttpRequest, path: Path<i32>) -> impl Respond
             match members {
                 Ok(members) => HttpResponse::Ok().json(members),
                 Err(e) => HttpResponse::InternalServerError().body(e),
+            }
+        }
+        Err(err_msg) => HttpResponse::Unauthorized().body(err_msg),
+    }
+}
+
+/// API endpoint to remove a member from a chat (admin only)
+#[delete("/members/{chat_id}/{user_id}")]
+pub async fn remove_chat_member(req: HttpRequest, path: Path<(i32, i32)>) -> impl Responder {
+    let (chat_id, member_user_id) = path.into_inner();
+    let claims = extract_claims_from_request(&req);
+    match claims {
+        Ok(claims) => {
+            let remover_user_id: i32 = claims.sub.parse().unwrap_or(0);
+            if remover_user_id == 0 {
+                return HttpResponse::Unauthorized().body("USER_NOT_AUTHENTICATED");
+            }
+            // Remove member
+            match crate::model::chat_components::remove_member_from_chat(chat_id, member_user_id, remover_user_id) {
+                Ok(_) => {
+                    // Get group name
+                    let group_name = crate::repository::chats::get_chat_by_id(chat_id)
+                        .and_then(|chat| chat.group_name)
+                        .unwrap_or("the group".to_string());
+                    // Notify the removed user if online
+                    let event_type = crate::web_socket::WsEventType::RemovedFromGroup;
+                    let payload = serde_json::json!({
+                        "chat_id": chat_id,
+                        "message": format!("You have been removed from the group '{}'", group_name)
+                    });
+                    let msg = crate::web_socket::ServerWsMessage {
+                        event_type,
+                        payload: payload.to_string(),
+                    };
+                    let chat_server_data = req.app_data::<web::Data<AppState>>().unwrap();
+                    let chat_server = &chat_server_data.chat_server;
+                    chat_server.lock().unwrap().send_to_users(&[member_user_id], &serde_json::to_string(&msg).unwrap());
+                    HttpResponse::Ok().body("Member removed")
+                }
+                Err(e) => HttpResponse::Forbidden().body(e),
             }
         }
         Err(err_msg) => HttpResponse::Unauthorized().body(err_msg),

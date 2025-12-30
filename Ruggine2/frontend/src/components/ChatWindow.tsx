@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Card, Spinner, Button } from 'react-bootstrap';
 // Rimosso: import { type ChatDAO, type MessageDAO, type SendMessagePayload, sendChatMessage } from '../api/api';
-import { type ChatDAO, type MessageDAO, type ChatMemberDAO, getUsernameFromUserId, getChatMembers } from '../api/api';
+import { type ChatDAO, type MessageDAO, type ChatMemberDAO, getUsernameFromUserId, getChatMembers, removeChatMember } from '../api/api';
 import { formatToUTCPlus1, chatMessageDateHeader } from '../utils/time';
 import { type User } from '../models/models';
 import { useAppContext } from '../context/AppContext'; // Importiamo il Context
@@ -68,6 +68,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
             } finally {
                 setLoadingMembers(false);
             }
+        }
+    }
+
+    const handleRemoveMember = async (userId: number) => {
+        if (!chat) return;
+        try {
+            await removeChatMember(chat.id, userId);
+            // Refresh the members list
+            const membersData = await getChatMembers(chat.id);
+            setMembers(membersData);
+        } catch (error) {
+            console.error("Error removing member:", error);
+            // Show error toast
         }
     }
 
@@ -248,7 +261,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                     {loadingMembers ? (
                         <Spinner animation="border" />
                     ) : (
-                        <MembersList members={members} />
+                            <MembersList members={members} isAdmin={isAdmin()} currentUserId={currentUser.id} onRemoveMember={handleRemoveMember} />
                     )}
                 </Card.Body>
             )}

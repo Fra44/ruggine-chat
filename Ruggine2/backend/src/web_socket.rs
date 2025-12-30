@@ -135,6 +135,7 @@ pub enum WsEventType {
     UserTyping, // maybe
     NewChat, // to send when user accepts an invite and joins a new chat (so that client can update its chat list)
     NewInvite, // to send when user receives a new invite (so that client can update its invite list)
+    RemovedFromGroup, // to send when user is removed from a group chat
 }
 
 

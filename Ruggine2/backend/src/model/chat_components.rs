@@ -40,3 +40,22 @@ pub fn get_chat_components(chat_id: i32) -> Vec<ChatComponentDTO> {
     let components = get_chat_components_by_chat_id(chat_id);
     map_chat_components_to_dto(components)
 }
+
+/// Function to remove a member from a chat, only if the remover is an admin
+pub fn remove_member_from_chat(chat_id: i32, member_user_id: i32, remover_user_id: i32) -> Result<(), String> {
+    // Check if remover is admin
+    let components = get_chat_components_by_chat_id(chat_id);
+    let is_admin = components.iter().any(|c| c.user_id == remover_user_id && c.role == "ADMIN");
+    if !is_admin {
+        return Err("Only admins can remove members".to_string());
+    }
+
+    // Cannot remove self? Maybe allow, but for now, allow
+    // if member_user_id == remover_user_id {
+    //     return Err("Cannot remove yourself".to_string());
+    // }
+
+    // Remove the component
+    crate::repository::chat_components::remove_chat_component(chat_id, member_user_id);
+    Ok(())
+}

@@ -333,6 +333,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 // altri aggiornamenti
                 break;
 
+            case 'REMOVED_FROM_GROUP': {
+                try {
+                    const data = JSON.parse(payload);
+                    const chatId = data.chat_id;
+                    const message = data.message || 'You have been removed from the group';
+                    // Remove the chat from the list
+                    setChats(prev => prev.filter(c => c.id !== chatId));
+                    // If it was selected, deselect it
+                    if (selectedChat && selectedChat.id === chatId) {
+                        setSelectedChat(null);
+                        setMessages([]);
+                    }
+                    toast.error(message);
+                } catch (err) {
+                    console.warn('Malformed REMOVED_FROM_GROUP payload', payload);
+                }
+                break;
+            }
+
             default:
                 console.warn(`Unknown WS message type: ${type}`);
         }
