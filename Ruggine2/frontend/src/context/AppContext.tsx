@@ -147,6 +147,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Ref per stabilizzare selectedChat nel callback WS
     const selectedChatRef = useRef<ChatDAO | null>(null);
 
+    // Stato per tracciare la chat attesa dopo accettazione invito
+    const [pendingAcceptedChatId, setPendingAcceptedChatId] = useState<number | null>(null);
+
     // STATI DI CARICAMENTO
     const [loadingChats, setLoadingChats] = useState(false);
     const [loadingMessages, setLoadingMessages] = useState(false);
@@ -256,6 +259,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             case 'NEW_CHAT': {
                 const newChat = payload as ChatDAO;
                 setChats(prev => [newChat, ...prev].sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || '')));
+                
+                // Se questa è la chat che stiamo aspettando dopo aver accettato un invito, selezionala
+                if (pendingAcceptedChatId === newChat.id) {
+                    setSelectedChat(newChat);
+                    selectedChatRef.current = newChat;
+                    setMessages([]);
+                    setPendingAcceptedChatId(null); // Reset
+                    try {
+                        await fetchMessages(newChat.id);
+                    } catch (_e) {
+                        // ignore fetch errors here; UI will show empty state
+                    }
+                }
+                
                 toast.success('You have been added to a new chat!');
                 break;
             }
@@ -319,7 +336,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             default:
                 console.warn(`Unknown WS message type: ${type}`);
         }
-    }, [chats, user]);
+    }, [chats, user, pendingAcceptedChatId]);
 
     // Avvia la connessione WebSocket (ricrea la connessione quando cambia il token)
     const storedToken = localStorage.getItem('token');
@@ -398,20 +415,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             const chatId = await acceptInviteApi(invite_id);
             // remove invite from list
             removeInvite(invite_id);
-            // refresh chats (with previews) and select the created chat
-            await refreshChats();
-            const created = (await getChats()).find(c => c.id === chatId) ?? null;
-            if (created) {
-                setSelectedChat(created);
-                // keep ref in sync and load messages for the newly selected chat
-                selectedChatRef.current = created;
-                setMessages([]);
-                try {
-                    await fetchMessages(created.id);
-                } catch (_e) {
-                    // ignore fetch errors here; UI will show empty state
-                }
-            }
+            // Imposta la chat attesa - il WebSocket NEW_CHAT la selezionerà automaticamente
+            setPendingAcceptedChatId(chatId);
             toast.success('Invite Accepted');
         } catch (err: any) {
             toast.error(err?.message || 'Error accepting invite');
