@@ -62,13 +62,13 @@ export default function InviteUserModal({ show, onHide, chatId }: InviteUserModa
     };
 
     return (
-        <Modal show={show} onHide={handleClose} centered>
+        <Modal show={show} onHide={handleClose} centered className="text-dark">
             <Modal.Header closeButton>
                 <Modal.Title>Invite Users to Group</Modal.Title>
             </Modal.Header>
             <Modal.Body>
                 <Form.Group className="mb-3">
-                    <Form.Label>Search Users</Form.Label>
+                    <Form.Label className="text-dark">Search Users</Form.Label>
                     <Form.Control
                         type="text"
                         placeholder="Type username..."
