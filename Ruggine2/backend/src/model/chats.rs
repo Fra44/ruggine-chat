@@ -1,13 +1,11 @@
-/** This file contains the utilities to "use" a Chat object WITHOUT directly interacting with the one
- * extracted/inserted from/to the DB  */
-
 use serde::{ Serialize, Deserialize };
-
 use crate::repository::{
     args::CreatePrivateChat,
     chats::{ get_chat_type, is_user_part_of_group_chat, is_user_part_of_private_chat },
 };
 
+/// Data Transfer Object for chats sent to the client.
+/// Includes enriched data like usernames and formatted timestamps.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ChatDTO {
     pub id: i32,
@@ -16,11 +14,11 @@ pub struct ChatDTO {
     pub user_id_2: Option<i32>,
     pub group_name: Option<String>,
     pub last_message_at: Option<String>,
-    // new addition :
     pub username_1: Option<String>,
     pub username_2: Option<String>,
 }
 
+/// Implementation to convert a repository Chat to a ChatDTO with enriched data.
 impl From<crate::repository::chats::Chat> for ChatDTO {
     fn from(chat: crate::repository::chats::Chat) -> Self {
         let mut un1: Option<String> = None;
@@ -60,14 +58,20 @@ impl From<crate::repository::chats::Chat> for ChatDTO {
     }
 }
 
-/// Function to map a vector of Chat objects (directly retrieved from DB) to a vector of ChatDTO objects
-/// (that are the business-logic version of Chat)
+/// Function to map a vector of Chat objects (directly retrieved from DB) to a vector of ChatDTO objects.
+/// # Arguments
+/// `chats` - A vector of Chat objects retrieved from the database.
+/// # Returns
+/// A vector of ChatDTO objects.
 pub fn map_chats_to_dto(chats: Vec<crate::repository::chats::Chat>) -> Vec<ChatDTO> {
     chats.into_iter().map(ChatDTO::from).collect()
 }
 
-/// Function to map a single Chat object (directly retrieved from DB) to a ChatDTO object
-/// (that is the business-logic version of Chat)
+/// Function to map a single Chat object (directly retrieved from DB) to a ChatDTO object.
+/// # Arguments
+/// `chat` - A Chat object retrieved from the database.
+/// # Returns
+/// A ChatDTO object.
 pub fn map_chat_to_dto(chat: crate::repository::chats::Chat) -> ChatDTO {
     ChatDTO::from(chat)
 }
@@ -89,7 +93,6 @@ pub fn get_user_chats(user_id: i32) -> Vec<ChatDTO> {
         let b_time = b.last_message_at.clone().unwrap_or_else(|| "1970-01-01 00:00:00".to_string());
         b_time.cmp(&a_time)
     });
-    //println!("Sorted chats for user {:?}:\n {:?}", user_id, chats_dto);
     chats_dto
 }
 
@@ -137,14 +140,14 @@ pub fn is_user_part_of_chat(user_id: i32, chat_id: i32) -> Result<bool, String> 
     }
 }
 
-/// function to create a private chat between two users
+/// Function to create a private chat between two users.
+/// Performs validation: users exist, not self-chat, chat doesn't already exist.
 /// # Arguments
-/// `user_id_1` : the id of one user
-/// `user_id_2` : the id of the other user
+/// `user_id_1` - The ID of the first user.
+/// `user_id_2` - The ID of the second user.
 /// # Returns
-/// A Result<i32, String> which is Ok(val: i32) if the chat was created successfully,
-/// where val is the id of the newly created chat,
-/// Err(String) if there was an error (e.g. chat already exists)
+/// A Result<ChatDTO, String> which is Ok(ChatDTO) if the chat was created successfully,
+/// Err(String) if there was an error (e.g. users not found, chat already exists).
 pub fn create_private_chat_between_users(
     user_id_1: i32,
     user_id_2: i32
@@ -155,7 +158,6 @@ pub fn create_private_chat_between_users(
 
     use crate::repository::chats::{ create_private_chat };
 
-    // we check that both users actually exist
     let exists_1 = crate::repository::users::find_user_by_id(user_id_1);
     match exists_1 {
         None => {
@@ -171,7 +173,6 @@ pub fn create_private_chat_between_users(
         Some(_) => {}
     }
 
-    // we check if a private chat between the two users already exists
     let alr_exists_res = crate::repository::chats::does_private_chat_between_users_exist(
         user_id_1,
         user_id_2
@@ -225,7 +226,6 @@ pub fn create_private_chat_between_users(
 /// where val is the id of the newly created chat,
 /// Err(String) if there was an error
 pub fn create_group_chat(creator_id: i32, group_name: String) -> Result<i32, String> {
-    // we check that the creator actually exists
     let exists = crate::repository::users::find_user_by_id(creator_id);
     match exists {
         None => {
@@ -266,8 +266,13 @@ pub fn create_group_chat(creator_id: i32, group_name: String) -> Result<i32, Str
     }
 }
 
+/// Function to retrieve all user IDs in a given chat (private or group).
+/// # Arguments
+/// `chat_id` - The ID of the chat whose user IDs are to be retrieved.
+/// # Returns
+/// A Result<Vec<i32>, String> which is Ok(Vec<i32>) containing user IDs if successful,
+/// Err(String) if the chat is not found or invalid.
 pub fn get_users_in_chat(chat_id: i32) -> Result<Vec<i32>, String> {
-    // we check that the chat exists
     let chat_opt = crate::repository::chats::get_chat_by_id(chat_id);
     match chat_opt {
         None => {
@@ -276,7 +281,6 @@ pub fn get_users_in_chat(chat_id: i32) -> Result<Vec<i32>, String> {
         Some(_) => {}
     }
 
-    // first we check what chat_type it is :
     let chat_type_res = get_chat_type(chat_id);
     match chat_type_res {
         Ok(chat_type) => {
@@ -292,18 +296,23 @@ pub fn get_users_in_chat(chat_id: i32) -> Result<Vec<i32>, String> {
     }
 }
 
+/// Data Transfer Object for chat members and pending invites.
+/// Contains user information and their status in the chat.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChatMemberDTO {
     pub user_id: i32,
     pub username: String,
-    pub status: String, // "member" or "invited"
+    pub status: String,
 }
 
-/// Function to get all members and pending invites for a chat
+/// Function to get all members and pending invites for a chat.
+/// # Arguments
+/// `chat_id` - The ID of the chat.
+/// # Returns
+/// A Result<Vec<ChatMemberDTO>, String> containing members with status "member" and invites with status "invited".
 pub fn get_chat_members_and_invites(chat_id: i32) -> Result<Vec<ChatMemberDTO>, String> {
     let mut members: Vec<ChatMemberDTO> = Vec::new();
 
-    // Get active members
     let components = crate::model::chat_components::get_chat_components(chat_id);
     for comp in components {
         if let Some(username) = comp.username {
@@ -315,7 +324,6 @@ pub fn get_chat_members_and_invites(chat_id: i32) -> Result<Vec<ChatMemberDTO>, 
         }
     }
 
-    // Get pending invites
     let pending_invites = crate::repository::invites::get_pending_invites_for_chat(chat_id)?;
     for invite in pending_invites {
         if let Some(receiver_id) = invite.receiver_id {

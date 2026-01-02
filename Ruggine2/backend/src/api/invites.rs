@@ -12,17 +12,20 @@ use crate::{
     auth::extractor::extract_claims_from_request,
 };
 
+/// Payload structure for sending an invite, containing chat and receiver IDs
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SendInvitePayload {
     pub chat_id: i32,
     pub receiver_id: i32,
 }
 
-/// API endpoint to get all invites for the authenticated user
-/// # Returns
-/// HttpResponse containing a list of invites or an error message
-/// SUCCESS: returns a JSON array of invites
-/// FAILURE: returns an error message
+/**
+ * API endpoint to get all invites for the authenticated user.
+ * # Arguments
+ * `req` - The HTTP request containing authentication headers.
+ * # Returns
+ * An HttpResponse containing a list of invites in JSON format or an error response.
+ */
 #[get("/")]
 pub async fn get_user_invites(req: HttpRequest) -> impl Responder {
     let claims = extract_claims_from_request(&req);
@@ -39,14 +42,15 @@ pub async fn get_user_invites(req: HttpRequest) -> impl Responder {
     }
 }
 
-/// API endpoint to invite a user to a chat
-/// # Arguments
-/// `chat_id` - the ID of the chat to which the user is invited
-/// `receiver_id` - the ID of the user to be invited
-/// Returns
-/// HttpResponse indicating success or failure
-/// SUCCESS: returns a success message
-/// FAILURE: returns an error message
+/**
+ * API endpoint to invite a user to a chat.
+ * # Arguments
+ * `req` - The HTTP request containing authentication headers.
+ * `body` - The JSON payload containing chat_id and receiver_id.
+ * `chat_server_data` - Shared application state for WebSocket server.
+ * # Returns
+ * An HttpResponse indicating success or an error response.
+ */
 #[post("/create")]
 pub async fn invite_user(
     req: HttpRequest,
@@ -68,14 +72,10 @@ pub async fn invite_user(
                 chat_id_
             );
 
-            // after the actual modifies in the DB, we add logic to notify the user through WebSocket about the new state :
             if let Ok(invite_id) = &create_invite_res {
-                // we retrieve the created invite row and map it to DTO (which includes resolved names)
                 let chat_server = &chat_server_data.chat_server;
                 let chat_server_locked = chat_server.lock().unwrap();
                 let event_type = crate::web_socket::WsEventType::NewInvite;
-
-                // attempt to fetch the freshly created invite using a direct lookup by id
                 let mut payload_json = None;
                 match crate::repository::invites::get_invite_by_id(*invite_id) {
                     Ok(Some(inv)) => {
@@ -97,7 +97,6 @@ pub async fn invite_user(
                     }
                 }
 
-                // fallback: if DTO creation/lookup failed, still send a minimal payload with IDs so client is notified
                 if payload_json.is_none() {
                     let fallback_msg = crate::web_socket::ServerWsMessage {
                         event_type: event_type.clone(),
@@ -130,13 +129,15 @@ pub async fn invite_user(
     }
 }
 
-/// API endpoint to accept an invite
-/// # Arguments
-/// `invite_id` - the ID of the invite to accept
-/// Returns
-/// HttpResponse indicating success or failure
-/// SUCCESS: returns the ID of the newly joined chat
-/// FAILURE: returns an error message
+/**
+ * API endpoint to accept an invite.
+ * # Arguments
+ * `req` - The HTTP request containing authentication headers.
+ * `path` - The invite ID as a path parameter.
+ * `chat_server_data` - Shared application state for WebSocket server.
+ * # Returns
+ * An HttpResponse containing the new chat ID or an error response.
+ */
 #[get("/accept/{invite_id}")]
 pub async fn accept_invite(
     req: HttpRequest,
@@ -154,12 +155,9 @@ pub async fn accept_invite(
             let accept_invite_res = crate::model::invites::accept_invite_model(invite_id, user_id_);
             match accept_invite_res {
                 Ok(new_id) => { 
-                    // after the actual modifies in the DB, we add logic to notify the user through WebSocket about the new state :
                     let chat_server = &chat_server_data.chat_server;
                     let chat_server_locked = chat_server.lock().unwrap();
                     let event_type = crate::web_socket::WsEventType::NewChat;
-                    
-                    // we retrieve the chat info to send as payload
                     let new_chat = crate::repository::chats::get_chat_by_id(new_id);
                     
                     if let Some(chat) = new_chat {
@@ -182,13 +180,14 @@ pub async fn accept_invite(
     }
 }
 
-/// API endpoint to reject an invite
-/// # Arguments
-/// `invite_id` - the ID of the invite to reject
-/// Returns
-/// HttpResponse indicating success or failure
-/// SUCCESS: returns a success message
-/// FAILURE: returns an error message
+/**
+ * API endpoint to reject an invite.
+ * # Arguments
+ * `req` - The HTTP request containing authentication headers.
+ * `path` - The invite ID as a path parameter.
+ * # Returns
+ * An HttpResponse indicating success or an error response.
+ */
 #[get("/reject/{invite_id}")]
 pub async fn reject_invite(req: HttpRequest, path: Path<i32>) -> impl Responder {
     let claims = extract_claims_from_request(&req);

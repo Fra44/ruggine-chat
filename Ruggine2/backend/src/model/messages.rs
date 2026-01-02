@@ -1,12 +1,8 @@
-/** This file contains the utilities to "use" a Chat object WITHOUT directly interacting with the one
- * extracted/inserted from/to the DB  */
-
+use crate::model::chats::is_user_part_of_chat;
 use serde::{ Serialize, Deserialize };
 
-use crate::model::chats::is_user_part_of_chat;
-
-/// this is the message "obtained" when the user "retrieves" the
-/// ones from a chat (i.e., GET /api/chats/{chat_id}/messages)
+/// Data Transfer Object for messages sent to the client.
+/// Contains message details with formatted timestamp.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MessageDTO {
     pub id: i32,
@@ -16,6 +12,7 @@ pub struct MessageDTO {
     pub sent_at: String,
 }
 
+/// Implementation to convert a repository Message to a MessageDTO.
 impl From<crate::repository::messages::Message> for MessageDTO {
     fn from(message: crate::repository::messages::Message) -> Self {
         MessageDTO {
@@ -53,10 +50,12 @@ pub fn map_message_to_dto(message: crate::repository::messages::Message) -> Mess
 /// Function to send a message in a chat (private or group).
 /// # Arguments
 /// `user_id` - The ID of the user sending the message.
-/// `chat_id` - The ID of the group chat where the message is being sent.
+/// `chat_id` - The ID of the chat where the message is being sent.
 /// `content` - The content of the message being sent.
+/// # Returns
+/// A Result<MessageDTO, String> which is Ok(MessageDTO) if the message was sent successfully,
+/// Err(String) if there was an authorization error or database failure.
 pub fn send_message(user_id: i32, chat_id: i32, content: String) -> Result<MessageDTO, String> {
-    // first we need to check if user_id is part of chat_id
     let is_part_res = is_user_part_of_chat(user_id, chat_id);
     match is_part_res {
         Ok(is_part) => {
@@ -68,7 +67,6 @@ pub fn send_message(user_id: i32, chat_id: i32, content: String) -> Result<Messa
             return Err(err_str);
         }
     }
-    // if user is part of chat, we can create the message
     let new_message = crate::repository::args::CreateMessage {
         chat_id,
         sender_id: user_id,

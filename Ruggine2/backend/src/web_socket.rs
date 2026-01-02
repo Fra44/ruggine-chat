@@ -1,9 +1,9 @@
-use std::collections::HashMap;
 use actix::{ Recipient, Actor, AsyncContext, ActorContext };
 use serde::{ Deserialize, Serialize };
+use std::collections::HashMap;
 use std::sync::{ Arc, Mutex };
-use std::time::Duration;
 use actix_web_actors::ws;
+use std::time::Duration;
 
 /// the JSON payload sent through WebSocket to the connnected clients
 #[derive(actix::Message, Clone)]
@@ -11,31 +11,35 @@ use actix_web_actors::ws;
 pub struct WsMessage(pub String);
 
 /// Main element to manage WebSocket sessions (clients connected through WS)
+/// Maintains a mapping of user IDs to their WebSocket recipients for broadcasting messages
 pub struct ChatServer {
-    /// maps session id to the Recipient (address) of the client
     pub sessions: HashMap<i32, Recipient<WsMessage>>,
 }
 
 impl ChatServer {
+    /// Creates a new ChatServer instance with an empty sessions map
     pub fn new() -> ChatServer {
         ChatServer {
             sessions: HashMap::new(),
         }
     }
 
-    /// function used when an Actor (user) connects
+    /// Registers a new WebSocket connection for a user
+    /// Associates the user's ID with their WebSocket recipient for future message delivery
     pub fn connect(&mut self, user_id: i32, addr: Recipient<WsMessage>) {
         self.sessions.insert(user_id, addr);
         log::info!("User {} connected.", user_id);
     }
 
-    /// function used when an Actor (user) disconnects
+    /// Removes a user's WebSocket connection when they disconnect
+    /// Cleans up the session mapping to prevent sending messages to disconnected clients
     pub fn disconnect(&mut self, user_id: i32) {
         self.sessions.remove(&user_id);
         log::info!("User {} disconnected.", user_id);
     }
 
-    /// function to send a message to a list of (connected) users
+    /// Sends a message to multiple users via their WebSocket connections
+    /// Only sends to users who are currently connected (have active sessions)
     pub fn send_to_users(&self, recipients: &[i32], message: &str) {
         for recipient_id in recipients {
             if let Some(addr) = self.sessions.get(recipient_id) {
@@ -46,17 +50,19 @@ impl ChatServer {
 }
 
 /// The Actor for the WebSocket SINGLE user connection
+/// Represents an individual WebSocket connection for a specific user
+/// Handles the lifecycle of the connection and message routing
 pub struct WsConn {
-    /// the ID of the authenticated user
     pub id: i32,
-    /// reference to the central ChatServer
     pub addr: Arc<Mutex<ChatServer>>,
 }
 
 impl Actor for WsConn {
     type Context = ws::WebsocketContext<Self>;
 
-    /// at the start of the Actor, if authentication had previously ended well, this function register the user connection to ChatServer
+    /// Called when the WebSocket connection is established
+    /// Registers the user with the ChatServer and sets up connection maintenance
+    /// Also delivers any pending invites that were created while the user was offline
     fn started(&mut self, ctx: &mut Self::Context) {
         if self.id == 0 {
             log::error!("WebSocket connection started without authentication!");
@@ -66,15 +72,12 @@ impl Actor for WsConn {
 
         self.addr.lock().unwrap().connect(self.id, ctx.address().recipient());
 
-        // Start heartbeat to keep connection alive
         ctx.run_interval(Duration::from_secs(30), |_, ctx| {
             ctx.ping(b"");
         });
         
-        // After connecting, try to deliver any pending invites that were created while the user
-        // was offline. This fetches invites from the repository and sends a NEW_INVITE WS message
-        // to the connected user for each pending invite. This ensures clients that connect
-        // after an invite was created still receive the notification.
+        // After connecting, try to deliver any pending invites that were created 
+        // while the user was offline
         match crate::repository::invites::get_invites_for_user(self.id) {
             Ok(pending) => {
                 for inv in pending {
@@ -87,7 +90,6 @@ impl Actor for WsConn {
                         log::error!("Failed to serialize invite DTO: {}", e);
                         "{}".to_string()
                     });
-                    // send only to this connected user
                     self.addr.lock().unwrap().send_to_users(&[self.id], &json);
                 }
             }
@@ -97,14 +99,16 @@ impl Actor for WsConn {
         }
     }
 
+    /// Called when the WebSocket connection is closing
+    /// Unregisters the user from the ChatServer
     fn stopping(&mut self, _: &mut Self::Context) -> actix::Running {
-        // Al termine, si disconnette dal ChatServer
         self.addr.lock().unwrap().disconnect(self.id);
         actix::Running::Stop
     }
 }
 
 /// Handling of messages RECEIVED FROM the WebSocket CLIENT
+/// Currently logs received messages but doesn't process them (client-to-server communication not implemented)
 impl actix::StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsConn {
     fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
         println!("WebSocket message received: {:?}", msg);
@@ -112,11 +116,10 @@ impl actix::StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsConn {
 }
 
 /// Handling of messages SENT TO the WebSocket CLIENT
+/// Receives WsMessage instances and sends them as text frames to the connected client
 impl actix::Handler<WsMessage> for WsConn {
     type Result = ();
-    /// Function to actually handle messages sent to the client
     fn handle(&mut self, msg: WsMessage, ctx: &mut Self::Context) {
-        // we send a message for NEW_MESSAGE event
         ctx.text(msg.0);
     }
 }
@@ -125,6 +128,7 @@ impl actix::Handler<WsMessage> for WsConn {
 
 /// Enum representing the different types of WebSocket events that can be sent to clients
 /// Each variant corresponds to a specific event type that the client can handle appropriately.
+/// Serialized to SCREAMING_SNAKE_CASE for JSON compatibility with the frontend.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum WsEventType {
@@ -145,12 +149,14 @@ pub enum WsEventType {
 /// `payload` - The actual data payload associated with the event, generic over T
 #[derive(Debug, Serialize)]
 pub struct ServerWsMessage<T> where T: Serialize {
-    #[serde(rename = "type")] // Rinominato in 'type' per il JSON
+    #[serde(rename = "type")] // Renamed to 'type' for JSON compatibility
     pub event_type: WsEventType,
     pub payload: T,
 }
 
 impl<T: Serialize> ServerWsMessage<T> {
+    /// Serializes the WebSocket message to a JSON string for transmission
+    /// Returns a fallback empty JSON object if serialization fails
     pub fn to_json(&self) -> String {
         serde_json::to_string(self).unwrap_or_else(|e| {
             log::error!("Failed to serialize WsMessage: {}", e);

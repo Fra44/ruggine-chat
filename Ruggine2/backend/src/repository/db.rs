@@ -3,7 +3,11 @@ use dotenv::dotenv;
 use std::env;
 
 /**
- * Function to connect to the database, it returns a PgConnection object to interact with the database
+ * Establishes a connection to the PostgreSQL database.
+ * Loads environment variables from .env file and uses DATABASE_URL.
+ * # Returns
+ * A PgConnection object for interacting with the database.
+ * Panics if DATABASE_URL is not set or connection fails.
  */
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();

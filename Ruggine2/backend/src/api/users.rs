@@ -5,6 +5,7 @@ use actix_web::{
 use serde::{ Deserialize, Serialize };
 use crate::repository::args::{ CreateUser, LoginUser };
 
+/// Enumeration of possible user-related errors that can occur in API operations
 #[derive(Debug)]
 pub enum UserError {
     UserNotFound,
@@ -146,6 +147,13 @@ pub async fn get_username_from_id(user_id: Path<i32>) -> impl Responder {
     }
 }
 
+/**
+ * API endpoint to get the user ID for a given username.
+ * # Arguments
+ * `username` - The username as a path parameter.
+ * # Returns
+ * An HttpResponse containing the user ID in JSON format or UserNotFound error.
+ */
 #[get("/by_username/{username}")]
 pub async fn get_user_id_by_username(username: Path<String>) -> impl Responder {
     let username_ = username.into_inner();
@@ -155,13 +163,20 @@ pub async fn get_user_id_by_username(username: Path<String>) -> impl Responder {
     }
 }
 
-/// Search users by prefix (protected)
+/// Query parameters for searching users by username prefix
 #[derive(Deserialize)]
 pub struct SearchQuery {
     pub prefix: String,
     pub limit: Option<i32>,
 }
 
+/**
+ * API endpoint to search users by username prefix.
+ * # Arguments
+ * `q` - Query parameters containing prefix and optional limit.
+ * # Returns
+ * An HttpResponse containing a list of matching users in JSON format or BadUserRequest error.
+ */
 #[get("/search")] 
 pub async fn search_users_by_prefix(q: Query<SearchQuery>) -> impl Responder {
     let prefix = q.prefix.clone();
@@ -175,7 +190,14 @@ pub async fn search_users_by_prefix(q: Query<SearchQuery>) -> impl Responder {
     }
 }
 
-/// Debug endpoint (public) - returns the Authorization header value and logs it.
+/**
+ * Debug endpoint to inspect the Authorization header value without logging.
+ * # Arguments
+ * `req` - The HTTP request containing headers.
+ * `q` - Query parameters (unused in this endpoint).
+ * # Returns
+ * An HttpResponse containing the Authorization header value in JSON format.
+ */
 #[get("/search_debug")] 
 pub async fn search_users_debug(req: actix_web::HttpRequest, q: Query<SearchQuery>) -> impl Responder {
     let auth_hdr = req.headers().get("authorization").and_then(|v| v.to_str().ok()).map(|s| s.to_string());

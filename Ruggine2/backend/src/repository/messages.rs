@@ -1,7 +1,7 @@
-use crate::schema::messages;
 use super::db::establish_connection;
-use diesel::prelude::*;
 use super::args::{ CreateMessage };
+use crate::schema::messages;
+use diesel::prelude::*;
 
 /**
  * Struct representing a new message to be inserted into the database.
@@ -28,11 +28,12 @@ pub struct Message {
 }
 
 /**
- * Repository level function that creates a new message into the database.
+ * Repository level function that creates a new message in the database.
+ * Inserts the message and retrieves the created record with its generated ID and timestamp.
  * # Arguments
- * `message` - A CreateMessage struct containing the message details.
+ * `message` - A CreateMessage struct containing chat_id, sender_id, and message content.
  * # Returns
- * A Result containing the created Message struct or an error string.
+ * A Result containing the created Message struct with database-generated fields, or an error string.
  */
 pub fn create_message(message: CreateMessage) -> Result<Message, String> {
     println!(
@@ -58,7 +59,6 @@ pub fn create_message(message: CreateMessage) -> Result<Message, String> {
         .execute(connection)
         .expect("Error saving new message");
     if insert_res == 1 {
-        // Return the newly created message
         let created_message = messages
             .order(id.desc())
             .first::<Message>(connection)
@@ -71,10 +71,11 @@ pub fn create_message(message: CreateMessage) -> Result<Message, String> {
 
 /**
  * Repository level function that retrieves all messages for a given chat ID from the database.
+ * Messages are returned in the order they appear in the database (typically insertion order).
  * # Arguments
  * `target_chat_id` - An integer representing the chat ID whose messages are to be retrieved.
  * # Returns
- * A vector of Message structs representing the messages of the specified chat.
+ * A vector of Message structs representing all messages in the specified chat.
  */
 pub fn get_messages_by_chat_id(target_chat_id: i32) -> Vec<Message> {
     println!("Retrieving messages for chat ID {:?}", target_chat_id);
