@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
 import { ListGroup, Badge, Modal, Button } from 'react-bootstrap';
 import type { ChatMemberDAO } from '../api/api';
+import React, { useState } from 'react';
 
 interface MembersListProps {
     members: ChatMemberDAO[];
@@ -9,21 +9,43 @@ interface MembersListProps {
     onRemoveMember: (userId: number) => void;
 }
 
+/**
+ * MembersList component that displays a list of group chat members with their status.
+ * Shows member badges (Member/Invited), and provides admin controls to remove members.
+ * Includes a confirmation modal for member removal to prevent accidental actions.
+ * @param members - Array of chat member objects to display
+ * @param isAdmin - Whether the current user has admin privileges
+ * @param currentUserId - ID of the currently logged-in user
+ * @param onRemoveMember - Callback function to remove a member from the group
+ */
 const MembersList: React.FC<MembersListProps> = ({ members, isAdmin, currentUserId, onRemoveMember }) => {
     const [showConfirm, setShowConfirm] = useState(false);
     const [pendingMember, setPendingMember] = useState<{ user_id: number; username?: string } | null>(null);
 
+    /**
+     * Opens the confirmation modal for member removal.
+     * @param user_id - ID of the member to remove
+     * @param username - Optional username for display in confirmation
+     */
     const openConfirm = (user_id: number, username?: string) => {
         setPendingMember({ user_id, username });
         setShowConfirm(true);
     };
 
+    /**
+     * Confirms and executes the member removal.
+     * Calls the onRemoveMember callback and closes the confirmation modal.
+     */
     const handleConfirm = () => {
         if (pendingMember) onRemoveMember(pendingMember.user_id);
         setShowConfirm(false);
         setPendingMember(null);
     };
 
+    /**
+     * Cancels the member removal and closes the confirmation modal.
+     * Resets the pending member state without making any changes.
+     */
     const handleCancel = () => {
         setShowConfirm(false);
         setPendingMember(null);

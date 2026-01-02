@@ -1,28 +1,38 @@
-import React, { useState } from "react";
 import { Container, Form, Button, Card, Row, Col } from "react-bootstrap";
+import { useAppContext } from "../context/AppContext";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import React, { useState } from "react";
 import { toast } from "react-hot-toast";
-
-// Rimosso: import { loginUser, type LoginUserPayload } from "../api/api";
+import { motion } from "framer-motion";
 import { type LoginUserPayload } from "../api/api";
 import "../styles/auth.css";
 
-// Importiamo il Context
-import { useAppContext } from "../context/AppContext";
-
-// Rimosso: export default function LoginPage({ user, setUser }) {
+/**
+ * LoginPage component — handles user authentication.
+ *
+ * Responsibilities:
+ * - Collects username and password from user input.
+ * - Validates inputs for presence.
+ * - Calls the login API and handles success/error responses.
+ * - Redirects to homepage on successful login.
+ * - Displays toast notifications for feedback.
+ */
 export default function LoginPage() {
-    const { login } = useAppContext(); // Otteniamo la funzione di login dal Context
-
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
+
+    const { login } = useAppContext();
 
     const isFormValid = username.trim() !== "" && password.trim() !== "";
 
     const navigate = useNavigate();
 
+    /**
+     * Handles form submission for user login.
+     * Validates form inputs, calls the login API via context,
+     * displays success/error toasts, and navigates to homepage on success.
+     */
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!isFormValid) return;
@@ -33,13 +43,7 @@ export default function LoginPage() {
                 username: username.trim(),
                 plain_password: password.trim(),
             };
-
-            // Usiamo la funzione login dal Context
-            // Rimosso: const loginRes = await loginUser(payload);
-            // Rimosso: localStorage.setItem("token", loginRes.token);
-            // Rimosso: setUser({ id: loginRes.user_id, username: username.trim() });
-            await login(payload); // La logica di salvare token/utente è ora nel Context
-
+            await login(payload);
             toast.success("Login completed!");
             navigate("/homepage");
         } catch (err: any) {
@@ -50,9 +54,7 @@ export default function LoginPage() {
         }
     };
 
-    // ... (resto del codice JSX invariato)
     return (
-        // ... (JSX invariato)
         <Container fluid className="auth-container d-flex align-items-center justify-content-center">
             <Row className="w-100 justify-content-center">
                 <Col xs={12} sm={8} md={9} lg={6} xl={5}>
@@ -103,6 +105,7 @@ export default function LoginPage() {
                                         </Button>
                                     </motion.div>
                                 </Form>
+
                                 <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24 }} className="mt-3 text-center auth-secondary-text">
                                     <Link to="/register" className="auth-link">
                                         Don't have an account? Register

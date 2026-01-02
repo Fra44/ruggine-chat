@@ -1,3 +1,9 @@
+/**
+ * NotFoundPage component — displays a 404 error page.
+ *
+ * Shown when the user navigates to a non-existent route.
+ * Provides a user-friendly message indicating the page was not found.
+ */
 export default function NotFoundPage() {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>

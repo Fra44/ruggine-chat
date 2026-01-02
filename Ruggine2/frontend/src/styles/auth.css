@@ -1,58 +1,55 @@
 /* ========================================================= */
-/* 1. VARIABILI DI BASE (Definisci la palette) */
+/* 1. BASIC VARIABLES (Define the palette) */
 /* ========================================================= */
 :root {
-  /* Sfondi */
+  /* Backgrounds */
   --color-bg-primary: #121212;
   --color-bg-card: #202020;
   --color-bg-input: #333333;
 
-  /* Testo e bordi */
-  --color-text-primary: #ffffff; /* Bianco puro per massimo contrasto */
+  /* Text and borders */
+  --color-text-primary: #ffffff;
   --color-text-secondary: #b0b0b0;
   --color-border: #444444;
 
-  /* Colore Primario (Accento) - usa il brand globale ruggine */
+  /* Primary Color */
   --color-primary-main: var(--brand);
   --color-primary-hover: var(--brand-hover);
   --color-primary-text: #ffffff;
 }
 
-/* Applica il tema Dark Mode al body o al contenitore principale */
+/* Dark Mode theme */
 body {
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
-  /* Assicurati che il contenuto non overflowi se necessario, ad esempio: */
-  /* min-height: 100vh; */
-  /* display: flex; */
-  /* align-items: center; */
-  /* justify-content: center; */
 }
 
 /* ========================================================= */
-/* 2. STILI CARD / RIQUADRO */
+/* 2. CARD / FRAME STYLES */
 /* ========================================================= */
 
+/* Authentication card container */
 .auth-card {
   background-color: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  padding: 3rem; /* Aumentato per rendere il riquadro "più pieno" */
+  padding: 3rem;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
   transition: transform 0.3s ease-out;
 }
 
-/* Titolo e Sottotitolo */
+/* Title and Subtitle */
 .auth-title {
   color: var(
     --color-text-primary
-  ) !important; /* Forza il bianco puro: CRUCIALE per la visibilità */
+  ) !important;
   font-weight: 800;
   font-size: 2.5rem;
   letter-spacing: -0.5px;
   margin-bottom: 0.5rem;
 }
 
+/* Subtitle styling */
 .auth-subtitle {
   color: var(--color-text-secondary);
   font-size: 1rem;
@@ -60,15 +57,16 @@ body {
   line-height: 1.5;
 }
 
-/* Spaziamento (per la classe auth-grid-gap nel Form) */
+/* Spacing (for the auth-grid-gap class in Form) */
 .auth-grid-gap {
   gap: 1.5rem;
 }
 
 /* ========================================================= */
-/* 3. INPUT e CAMPI FORM */
+/* 3. INPUT and FORM FIELDS */
 /* ========================================================= */
 
+/* Form label styling */
 .form-label {
   color: var(--color-text-primary);
   font-weight: 600;
@@ -76,6 +74,7 @@ body {
   font-size: 1.05rem;
 }
 
+/* Input field styling */
 .auth-input.form-control {
   background-color: var(--color-bg-input);
   color: var(--color-text-primary);
@@ -86,6 +85,7 @@ body {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+/* Focused input styling */
 .auth-input.form-control:focus {
   background-color: var(--color-bg-input);
   color: var(--color-text-primary);
@@ -93,16 +93,17 @@ body {
   box-shadow: 0 0 0 0.25rem rgba(var(--brand-rgb), 0.35);
 }
 
-/* Placeholder text contrasto */
+/* Placeholder text contrast */
 .auth-input.form-control::placeholder {
   color: var(--color-text-secondary);
   opacity: 0.8;
 }
 
 /* ========================================================= */
-/* 4. BOTTONE (Massima Evidenza) */
+/* 4. BUTTON (Maximum Visibility) */
 /* ========================================================= */
 
+/* Primary button styling */
 .auth-button-primary.btn-primary {
   background-color: var(--color-primary-main);
   border-color: var(--color-primary-main);
@@ -119,6 +120,7 @@ body {
   transition: all 0.2s ease;
 }
 
+/* Button hover effect */
 .auth-button-primary.btn-primary:hover:not(:disabled) {
   background-color: var(--color-primary-hover);
   border-color: var(--color-primary-hover);
@@ -126,6 +128,7 @@ body {
   box-shadow: 0 7px 20px rgba(var(--brand-rgb), 0.5);
 }
 
+/* Disabled button styling */
 .auth-button-primary.btn-primary:disabled {
   background-color: var(--color-border);
   border-color: var(--color-border);
@@ -134,37 +137,39 @@ body {
 }
 
 /* ========================================================= */
-/* 5. NUOVO POSIZIONAMENTO LINK DI LOGIN (Alto a Destra) */
+/* 5. NEW LOGIN LINK POSITIONING (Top Right) */
 /* ========================================================= */
 
+/* Login link header positioning */
 .login-link-header {
   display: flex;
-  justify-content: flex-end; /* Sposta il contenuto a destra */
+  justify-content: flex-end;
   align-items: center;
   width: 100%;
-  padding-right: 0.5rem; /* Piccola indentazione a destra */
+  padding-right: 0.5rem;
 }
 
-/* Stile per la frase "Already have an account?" */
-  .login-link-header .auth-secondary-text {
-    color: var(--color-text-secondary) !important;
-    font-size: 0.9rem;
-  }
+/* Style for the phrase "Already have an account?" */
+.login-link-header .auth-secondary-text {
+  color: var(--color-text-secondary) !important;
+  font-size: 0.9rem;
+}
 
-/* Rendi il link di Login un bottone discreto e visibile */
+/* Make the Login link a discreet and visible button */
 .auth-link-header-button {
   padding: 0.5rem 1rem;
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background-color: var(
     --color-bg-card
-  ); /* Usa il colore della card come sfondo */
-  color: var(--color-primary-main); /* Usa il colore principale per il testo */
+  );
+  color: var(--color-primary-main);
   text-decoration: none;
   font-weight: 600;
   transition: all 0.2s;
 }
 
+/* Button hover styling */
 .auth-link-header-button:hover {
   background-color: var(--color-bg-input);
   color: var(--color-primary-hover);
@@ -172,7 +177,7 @@ body {
   border-color: var(--color-primary-main);
 }
 
-/* Opzionale: media query per schermi più piccoli */
+/* Mobile responsive adjustments */
 @media (max-width: 768px) {
   .auth-card {
     padding: 2rem 1.5rem;

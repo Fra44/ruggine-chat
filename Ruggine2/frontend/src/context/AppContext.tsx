@@ -6,14 +6,16 @@ import React, {
     useCallback,
     useRef
 } from 'react';
+import { loginUser, getChats, getChatMessages, sendChatMessage, getInvites, acceptInvite as acceptInviteApi, rejectInvite as rejectInviteApi, getUsernameFromUserId, getChatComponents } from '../api/api';
+import type { ChatDAO, MessageDAO, LoginUserPayload, LoginResponse, ServerWsMessage, InviteDAO, ChatComponentDAO } from '../api/api';
 import { useNavigate } from 'react-router-dom';
+import type { User } from '../models/models';
 import { toast } from 'react-hot-toast';
 import InviteModal from '../components/InviteModal';
 
-import type { User } from '../models/models';
-import type { ChatDAO, MessageDAO, LoginUserPayload, LoginResponse, ServerWsMessage, InviteDAO, ChatComponentDAO } from '../api/api';
-import { loginUser, getChats, getChatMessages, sendChatMessage, getInvites, acceptInvite as acceptInviteApi, rejectInvite as rejectInviteApi, getUsernameFromUserId, getChatComponents } from '../api/api';
-
+/**
+ * Application context type defining the global state and actions available throughout the app.
+ */
 interface AppContextType {
     user: User | null;
     chats: ChatDAO[];
@@ -24,29 +26,31 @@ interface AppContextType {
     invites: InviteDAO[];
     chatComponents: ChatComponentDAO[];
 
-    // Azioni esposte
-    login: (payload: LoginUserPayload) => Promise<LoginResponse>;
-    logout: () => void;
-    setSelectedChat: (chat: ChatDAO | null) => void;
     sendMessage: (chatId: number, content: string) => Promise<void>;
-    fetchMessages: (chatId: number) => Promise<void>;
+    login: (payload: LoginUserPayload) => Promise<LoginResponse>;
     setChats: React.Dispatch<React.SetStateAction<ChatDAO[]>>;
-    fetchInvites: () => Promise<void>;
-    refreshChats: () => Promise<void>;
+    fetchChatComponents: (chatId: number) => Promise<void>;
     acceptInvite: (invite_id: number) => Promise<void>;
     rejectInvite: (invite_id: number) => Promise<void>;
-    fetchChatComponents: (chatId: number) => Promise<void>;
+    fetchMessages: (chatId: number) => Promise<void>;
+    setSelectedChat: (chat: ChatDAO | null) => void;
+    fetchInvites: () => Promise<void>;
+    refreshChats: () => Promise<void>;
+    logout: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // =========================================================================
-// 2. FUNZIONE CUSTOM HOOK: useWebSocket (Gestione Connessione)
+// 2. CUSTOM HOOK: useWebSocket (WebSocket Connection Management)
 // =========================================================================
 
 /**
- * Hook customizzato per gestire la logica di connessione/riconnessione WebSocket.
- * Non gestisce lo stato dell'app, ma solo il flusso di dati WS.
+ * Custom hook for managing WebSocket connection logic and reconnection.
+ * Handles connection establishment, message handling, and automatic reconnection on disconnection.
+ * @param handleWsMessage - Callback function to process incoming WebSocket messages
+ * @param token - Authentication token for WebSocket connection
+ * @returns The active WebSocket connection or null
  */
 const useWebSocket = (handleWsMessage: (msg: ServerWsMessage<any>) => void, token: string | null) => {
     const [socket, setSocket] = useState<WebSocket | null>(null);
@@ -96,13 +100,11 @@ const useWebSocket = (handleWsMessage: (msg: ServerWsMessage<any>) => void, toke
     useEffect(() => {
         if (socket) {
             if (token) {
-                // If token changed, close old socket and reconnect
                 socket.close();
                 setSocket(null);
                 setReconnectAttempts(0);
                 connect();
             } else {
-                // If no token, close socket
                 socket.close();
                 setSocket(null);
             }
@@ -121,23 +123,35 @@ const useWebSocket = (handleWsMessage: (msg: ServerWsMessage<any>) => void, toke
 };
 
 // =========================================================================
-// 3. PROVIDER PRINCIPALE (Gestione dello Stato e del Protocollo)
+// 3. MAIN PROVIDER (State Management and Protocol Handling)
 // =========================================================================
 
+/**
+ * Main application provider component that manages global state and WebSocket communication.
+ * Provides context for user authentication, chat management, messaging, and invites.
+ * Handles real-time updates through WebSocket connections and manages application lifecycle.
+ */
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const navigate = useNavigate();
-
-    // STATI CENTRALI DELL'APPLICAZIONE (I tuoi 4 punti)
+    
+    const [pendingAcceptedChatId, setPendingAcceptedChatId] = useState<number | null>(null);
+    const [chatComponents, setChatComponents] = useState<ChatComponentDAO[]>([]);
+    const [selectedChat, setSelectedChat] = useState<ChatDAO | null>(null);
+    const [loadingMessages, setLoadingMessages] = useState(false);
+    const [messages, setMessages] = useState<MessageDAO[]>([]);
+    const [loadingChats, setLoadingChats] = useState(false);
+    const [invites, setInvites] = useState<InviteDAO[]>([]);
     const [user, setUser] = useState<User | null>(null);
     const [chats, setChats] = useState<ChatDAO[]>([]);
-    const [selectedChat, setSelectedChat] = useState<ChatDAO | null>(null);
-    const [messages, setMessages] = useState<MessageDAO[]>([]);
-    const [invites, setInvites] = useState<InviteDAO[]>([]);
-    const [chatComponents, setChatComponents] = useState<ChatComponentDAO[]>([]);
-
-    // Ref to track invite ids to avoid races between fetch and WS events
+    
+    const selectedChatRef = useRef<ChatDAO | null>(null);
     const invitesRef = useRef<Set<number>>(new Set());
+    const navigate = useNavigate();
 
+    /**
+     * Adds a new invite to the invites list, preventing duplicates.
+     * @param inv - The invite to add
+     * @returns True if added, false if already exists
+     */
     const addInvite = useCallback((inv: InviteDAO) => {
         if (invitesRef.current.has(inv.id)) return false;
         invitesRef.current.add(inv.id);
@@ -145,37 +159,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return true;
     }, []);
 
+    /**
+     * Removes an invite from the invites list by ID.
+     * @param invite_id - The ID of the invite to remove
+     */
     const removeInvite = useCallback((invite_id: number) => {
         invitesRef.current.delete(invite_id);
         setInvites(prev => prev.filter(inv => inv.id !== invite_id));
     }, []);
 
-    // Ref per stabilizzare selectedChat nel callback WS
-    const selectedChatRef = useRef<ChatDAO | null>(null);
-
-    // Stato per tracciare la chat attesa dopo accettazione invito
-    const [pendingAcceptedChatId, setPendingAcceptedChatId] = useState<number | null>(null);
-
-    // STATI DI CARICAMENTO
-    const [loadingChats, setLoadingChats] = useState(false);
-    const [loadingMessages, setLoadingMessages] = useState(false);
-
-
-    // Gestione della connessione WS
-    // Hook migliorato con backoff di riconnessione e uso di ref per selectedChat
+    /**
+     * Handles incoming WebSocket messages and updates application state accordingly.
+     * Processes different message types like new messages, chats, invites, and removals.
+     * @param msg - The WebSocket message from the server
+     */
     const handleWsMessage = useCallback(async (msg: ServerWsMessage<any>) => {
         const { type, payload } = msg;
 
         switch (type) {
             case 'NEW_MESSAGE': {
+                // Handle new message: update chat list, add to current messages if chat is selected, show notification
                 const newMessage = payload as MessageDAO;
 
-                // Aggiorna la lista messaggi SOLO se l'utente è in quella chat
                 if (selectedChatRef.current?.id === newMessage.chat_id) {
                     setMessages((prev) => [...prev, newMessage]);
                 }
 
-                // Aggiorna la lista chat (sposta in cima)
+                // Update chat list: move chat to top with updated last message info
                 setChats((prevChats) => {
                     let updatedChats = prevChats.filter(c => c.id !== newMessage.chat_id);
                     const chatToUpdate = prevChats.find(c => c.id === newMessage.chat_id);
@@ -188,19 +198,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     return updatedChats.sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || ''));
                 });
 
-                // Notification for messages in chats not currently selected
                 if (selectedChatRef.current?.id !== newMessage.chat_id) {
-                    // try to find the chat locally
                     let chat = chats.find(c => c.id === newMessage.chat_id);
 
-                    // if we don't have the chat yet (e.g. new group), fetch chats once
                     if (!chat) {
                         try {
                             const fetched = await getChats();
-                            // merge/replace local chats with fetched list while preserving previews
                             setChats(prev => {
                                 const map = new Map<number, ChatDAO>();
-                                // index previous by id for quick lookup
                                 const prevById = new Map(prev.map(p => [p.id, p] as [number, ChatDAO]));
 
                                 fetched.forEach(c => {
@@ -209,15 +214,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                                     map.set(c.id, { ...c, last_message_preview: preview });
                                 });
 
-                                // include any prev chats not present in fetched
                                 prev.forEach(c => { if (!map.has(c.id)) map.set(c.id, c); });
 
-                                // ensure the chat for the incoming message has an updated preview/last_message_at
                                 if (map.has(newMessage.chat_id)) {
                                     const entry = map.get(newMessage.chat_id)!;
                                     map.set(newMessage.chat_id, { ...entry, last_message_preview: newMessage.content, last_message_at: newMessage.sent_at });
                                 } else {
-                                    // if not present, try to update prev entry
                                     const prevEntry = prevById.get(newMessage.chat_id);
                                     if (prevEntry) {
                                         map.set(prevEntry.id, { ...prevEntry, last_message_preview: newMessage.content, last_message_at: newMessage.sent_at });
@@ -233,7 +235,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         }
                     }
 
-                    // Do not notify if the sender is the current logged-in user
                     if (user && Number(newMessage.sender_id) === Number(user.id)) {
                         break;
                     }
@@ -243,7 +244,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                         const chatName = chat?.group_name || `Chat ${newMessage.chat_id}`;
                         toast(`New message in ${chatName}`, { icon: '💬' });
                     } else if (chat && chat.chat_type && String(chat.chat_type).toLowerCase() === 'private') {
-                        // private chat -> show sender name
                         getUsernameFromUserId(newMessage.sender_id).then(username => {
                             toast(`New message from ${username}`, { icon: '💬' });
                         }).catch(() => {
@@ -251,7 +251,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                             toast(`New message in ${chatName}`, { icon: '💬' });
                         });
                     } else {
-                        // unknown chat: fall back to resolving sender or generic message
                         getUsernameFromUserId(newMessage.sender_id).then(username => {
                             toast(`New message from ${username}`, { icon: '💬' });
                         }).catch(() => {
@@ -263,19 +262,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
 
             case 'NEW_CHAT': {
+                // Handle new chat creation: add to chat list, auto-select if from accepted invite
                 const newChat = payload as ChatDAO;
                 setChats(prev => [newChat, ...prev].sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || '')));
                 
-                // Se questa è la chat che stiamo aspettando dopo aver accettato un invito, selezionala
                 if (pendingAcceptedChatId === newChat.id) {
                     setSelectedChat(newChat);
                     selectedChatRef.current = newChat;
                     setMessages([]);
-                    setPendingAcceptedChatId(null); // Reset
+                    setPendingAcceptedChatId(null);
                     try {
                         await fetchMessages(newChat.id);
                     } catch (_e) {
-                        // ignore fetch errors here; UI will show empty state
                     }
                 }
                 
@@ -284,34 +282,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
 
             case 'NEW_INVITE': {
+                // Handle new invite: enrich with sender username and group name, add to invites list, show notification
                 try {
                     const newInvite = payload as InviteDAO;
 
-                    // Try to enrich invite quickly (resolve sender name and group name) before adding,
-                    // so that the modal shows human-friendly labels immediately.
                     const enriched: any = { ...newInvite };
                     const promises: Promise<any>[] = [];
                     if (!enriched.sender_username && newInvite.sender_id != null) {
                         promises.push(getUsernameFromUserId(newInvite.sender_id).then(n => { enriched.sender_username = n; }).catch(() => {}));
                     }
                     if (!enriched.group_name) {
-                        // try to resolve from local chats state first
                         const localFound = chats.find(c => c.id === Number(newInvite.chat_id));
                         if (localFound) {
                             enriched.group_name = localFound.group_name ?? `Chat ${newInvite.chat_id}`;
                         } else {
-                            // fallback: try a light external fetch but don't block long
                             promises.push(getChats().then(cs => {
                                 const found = cs.find(c => c.id === Number(newInvite.chat_id));
                                 if (found) enriched.group_name = found.group_name ?? `Chat ${newInvite.chat_id}`;
                             }).catch(() => {}));
                         }
                     }
-                    // await enrichment but don't let it block forever
                     try {
                         await Promise.race([Promise.all(promises), new Promise(res => setTimeout(res, 300))]);
                     } catch (_e) {
-                        // ignore
                     }
 
                     const added = addInvite(enriched as InviteDAO);
@@ -335,18 +328,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 break;
             }
 
-            case 'CHAT_UPDATED':
-                // altri aggiornamenti
-                break;
-
             case 'REMOVED_FROM_GROUP': {
+                // Handle removal from group: remove chat from list, deselect if current, show error message
                 try {
                     const data = JSON.parse(payload);
                     const chatId = data.chat_id;
                     const message = data.message || 'You have been removed from the group';
-                    // Remove the chat from the list
                     setChats(prev => prev.filter(c => c.id !== chatId));
-                    // If it was selected, deselect it
                     if (selectedChat && selectedChat.id === chatId) {
                         setSelectedChat(null);
                         setMessages([]);
@@ -359,21 +347,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
 
             default:
+                // Log unknown message types for debugging
                 console.warn(`Unknown WS message type: ${type}`);
         }
     }, [chats, user, pendingAcceptedChatId]);
 
-    // Avvia la connessione WebSocket (ricrea la connessione quando cambia il token)
     const storedToken = localStorage.getItem('token');
     useWebSocket(handleWsMessage, storedToken);
 
-    // Caricamento chat iniziali
+    /**
+     * Loads initial chats for the authenticated user, enriching them with message previews.
+     */
     const loadInitialChats = useCallback(async () => {
         if (!user) return;
         setLoadingChats(true);
         try {
             const fetchedChats = await getChats();
-            // Enrich chats with last_message_preview when possible
             const enrich = async (chatsToEnrich: typeof fetchedChats) => {
                 return await Promise.all(chatsToEnrich.map(async (c) => {
                     try {
@@ -396,7 +385,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }, [user]);
 
-    // Refresh chats helper exposed to consumers: fetch chats and enrich previews
+    /**
+     * Refreshes the chats list, fetching from server and enriching with message previews.
+     */
     const refreshChats = useCallback(async () => {
         if (!user) return;
         try {
@@ -417,16 +408,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }, [user]);
 
-    // Carica gli inviti per l'utente
+    /**
+     * Fetches pending invites for the current user.
+     */
     const fetchInvites = useCallback(async () => {
         if (!user) return;
         try {
             const fetched = await getInvites();
             setInvites(prev => {
-                // Merge without duplicates
                 const existingIds = new Set(prev.map(inv => inv.id));
                 const newInvites = fetched.filter(inv => !existingIds.has(inv.id));
-                // update ref
                 newInvites.forEach(n => invitesRef.current.add(n.id));
                 return [...prev, ...newInvites];
             });
@@ -435,12 +426,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }, [user]);
 
+    /**
+     * Accepts an invite and joins the corresponding chat.
+     * @param invite_id - The ID of the invite to accept
+     */
     const handleAcceptInvite = useCallback(async (invite_id: number) => {
         try {
             const chatId = await acceptInviteApi(invite_id);
-            // remove invite from list
             removeInvite(invite_id);
-            // Imposta la chat attesa - il WebSocket NEW_CHAT la selezionerà automaticamente
             setPendingAcceptedChatId(chatId);
             toast.success('Invite Accepted');
         } catch (err: any) {
@@ -449,6 +442,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }, []);
 
+    /**
+     * Rejects an invite and removes it from the list.
+     * @param invite_id - The ID of the invite to reject
+     */
     const handleRejectInvite = useCallback(async (invite_id: number) => {
         try {
             await rejectInviteApi(invite_id);
@@ -460,6 +457,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }, []);
 
+    /**
+     * Fetches chat components (members) for a group chat.
+     * @param chatId - The ID of the chat to fetch components for
+     */
     const fetchChatComponents = useCallback(async (chatId: number) => {
         if (!user) return;
         try {
@@ -470,7 +471,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }, [user]);
 
-    // Caricamento messaggi per la chat selezionata
+    /**
+     * Fetches messages for a specific chat.
+     */
     const fetchMessages = useCallback(async (chatId: number) => {
         setLoadingMessages(true);
         try {
@@ -484,22 +487,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     }, []);
 
-    // ------------------------------------
-    // Azioni e side-effects
-    // ------------------------------------
-
-    // 1. Inizializzazione: Controlla il token all'avvio
+    // Check authentication status on component mount and validate token expiration
     useEffect(() => {
         const checkAuth = async () => {
             const token = localStorage.getItem('token');
             if (token) {
-                // Proviamo a decodificare il token JWT per ricostruire lo stato `user`.
                 try {
+                    // Decode JWT token payload to extract user information and check expiration
                     const decodePayload = (t: string) => {
                         const parts = t.split('.');
                         if (parts.length < 2) return null;
                         const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-                        // pad
                         const pad = b64.length % 4;
                         const padded = pad ? b64 + '='.repeat(4 - pad) : b64;
                         const json = atob(padded);
@@ -507,11 +505,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     };
 
                     const payload = decodePayload(token);
-                    // If token has exp claim and it's expired -> force logout
                     if (payload && typeof payload.exp === 'number') {
                         const nowSec = Math.floor(Date.now() / 1000);
                         if (payload.exp <= nowSec) {
-                            // token expired: remove and redirect to login
                             localStorage.removeItem('token');
                             setUser(null);
                             navigate('/login');
@@ -529,32 +525,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 } catch (err) {
                     console.warn('Failed to decode token payload', err);
                 }
-                // fallback: se non riusciamo a ricostruire l'utente, rimuoviamo il token
-                // per evitare loop e forziamo il logout
-                // localStorage.removeItem('token');
-                // navigate('/login');
             }
         };
         checkAuth();
     }, [navigate]);
 
-    // 2. Caricamento chat all'autenticazione
+    // Load initial chats when user is authenticated
     useEffect(() => {
         if (user) {
             loadInitialChats();
         }
     }, [user, loadInitialChats]);
 
+    // Fetch pending invites when user is authenticated
     useEffect(() => {
         if (user) fetchInvites();
     }, [user, fetchInvites]);
 
-
-    // 3. Funzione di Login
+    /**
+     * Authenticates a user with the provided credentials.
+     * Stores the token in localStorage and updates the user state.
+     * @param payload - Login credentials (username and password)
+     * @returns The login response containing the authentication token
+     */
     const login = async (payload: LoginUserPayload): Promise<LoginResponse> => {
         const loginRes = await loginUser(payload);
         localStorage.setItem("token", loginRes.token);
-        // Decodifica il token per ottenere i dati utente usando la stessa funzione di checkAuth
         const decodePayload = (t: string) => {
             const parts = t.split('.');
             if (parts.length < 2) return null;
@@ -575,7 +571,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return loginRes;
     };
 
-    // 4. Funzione di Logout
+    /**
+     * Logs out the current user by clearing authentication data and resetting application state.
+     */
     const logout = () => {
         localStorage.removeItem('token');
         setUser(null);
@@ -585,7 +583,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         navigate('/login');
     };
 
-    // Ascolta l'evento globale emesso dalle chiamate API quando ricevono 401
+    // Listen for unauthorized events to handle session expiration
     useEffect(() => {
         const handler = () => {
             toast.error('Session expired. Please login again.');
@@ -595,7 +593,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return () => window.removeEventListener('app:unauthorized', handler as EventListener);
     }, [logout]);
 
-    // 5. Gestione selezione chat (carica i messaggi)
+    /**
+     * Sets the currently selected chat and loads its messages and components.
+     * @param chat - The chat to select, or null to deselect
+     */
     const handleSetSelectedChat = (chat: ChatDAO | null) => {
         setSelectedChat(chat);
         selectedChatRef.current = chat; // Aggiorna il ref per il WS handler
@@ -609,30 +610,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
     };
 
-    // 6. Invio Messaggio (Simulazione REST + Aggiornamento Locale)
-    // Nota: Questo *dovrebbe* essere solo un'API REST. L'aggiornamento real-time 
-    // della lista messaggi dovrebbe avvenire tramite WS (vedi caso NEW_MESSAGE)
+    /**
+     * Sends a message to the specified chat.
+     * @param chatId - The ID of the chat to send the message to
+     * @param content - The message content to send
+     */
     const handleSendMessage = async (chatId: number, content: string): Promise<void> => {
         if (!user) return;
-
-        // Simula l'invio tramite API REST (che poi innescherà il WS per tutti)
-        // Dobbiamo usare un mock o la funzione API reale per l'invio.
-        // **Nel tuo ChatWindow.tsx stai usando `sendChatMessage`**
-        // In un'applicazione reale, il server dovrebbe inviare un WS 
-        // a te e agli altri utenti dopo aver salvato il messaggio.
-
-        // --- CHIAMATA API DI INVIO ---
         await sendChatMessage({ chat_id: chatId, content: content });
-        // --- FINE CHIAMATA API ---
-
-        // Fintanto che il server invia il messaggio via WS, non serve 
-        // aggiornare localmente la lista messages qui. Il messaggio 
-        // WS 'NEW_MESSAGE' si occuperà di questo. 
-        // In attesa di implementazione REST + WS completa, lo lasciamo così.
     };
 
-
-    // Valore del Context
     const contextValue: AppContextType = {
         user,
         chats,
@@ -665,9 +652,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 };
 
 // =========================================================================
-// 4. CUSTOM HOOK PER L'USO NEI COMPONENTI
+// 4. CUSTOM HOOK FOR USE IN COMPONENTS
 // =========================================================================
 
+/**
+ * Custom hook to access the application context.
+ * Must be used within an AppProvider component.
+ * @returns The application context containing state and actions
+ * @throws Error if used outside of AppProvider
+ */
 export const useAppContext = (): AppContextType => {
     const context = useContext(AppContext);
     if (context === undefined) {

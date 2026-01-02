@@ -1,26 +1,25 @@
-/// This file contains functions that "directly" call the backend API endpoints and the interfaces that define
-/// the request payloads and response structures.
-
 import { toApiError } from "../models/models";
 import type { User } from '../models/models';
 
 const BASE_URL = 'http://localhost:8080/api';
 
 /**
- * utility function to get the stored token from localStorage
+ * Retrieves the JWT authentication token from localStorage.
+ * @returns The stored token string, or null if not found
  */
-export const getToken = () => localStorage.getItem('token');;
+export const getToken = () => localStorage.getItem('token');
 
 /**
- * authFetch: wrapper around fetch that injects the Authorization header when
- * a token is available and dispatches a global event on 401 so the app can
- * react (logout/redirect).
+ * Wrapper around fetch that automatically injects the Authorization header with the stored JWT token
+ * when available. Dispatches a global 'app:unauthorized' event on 401 responses to trigger logout.
+ * @param input - The URL or Request object to fetch
+ * @param init - Optional fetch initialization options
+ * @returns Promise resolving to the Response object
  */
 async function authFetch(input: RequestInfo, init?: RequestInit) {
     const token = getToken();
     const headers: Record<string, string> = {};
     if (init && init.headers) {
-        // normalize HeadersInit into a plain object when possible
         if (init.headers instanceof Headers) {
             init.headers.forEach((v, k) => headers[k] = v);
         } else if (Array.isArray(init.headers)) {
@@ -39,7 +38,6 @@ async function authFetch(input: RequestInfo, init?: RequestInit) {
         try {
             window.dispatchEvent(new CustomEvent('app:unauthorized'));
         } catch (e) {
-            // ignore if dispatch fails
         }
     }
     return res;
@@ -92,9 +90,9 @@ export interface SendMessagePayload {
 
 
 /**
- * function to call the backend API endpoint for logging in a user
- * @param payload: LoginUserPayload 
- * @returns 
+ * Authenticates a user with username and password credentials.
+ * @param payload - Object containing username and plain_password
+ * @returns Promise resolving to LoginResponse with JWT token and user info
  */
 export const loginUser = async (
     payload: LoginUserPayload
@@ -112,9 +110,9 @@ export const loginUser = async (
 };
 
 /**
- * function to call the backend API endpoint for registering a new user
- * @param payload: RegisterUserPayload
- * @returns
+ * Registers a new user account with the provided credentials.
+ * @param payload - Object containing username and plain_password for registration
+ * @returns Promise resolving to RegistrationResponse with user info and confirmation message
  */
 export const registerUser = async (
     payload: RegisterUserPayload
@@ -131,6 +129,11 @@ export const registerUser = async (
     return res.json();
 };
 
+/**
+ * Retrieves the username for a given user ID from the backend.
+ * @param user_id - The ID of the user whose username to retrieve
+ * @returns Promise resolving to the username string
+ */
 export const getUsernameFromUserId = async (user_id: number): Promise<string> => {
     const res = await authFetch(`${BASE_URL}/users/${user_id}`, {
         method: "GET",
@@ -143,9 +146,14 @@ export const getUsernameFromUserId = async (user_id: number): Promise<string> =>
         throw await toApiError(res);
     }
     const data = await res.json();
-    return data;  // The backend returns the username as a plain string
+    return data;
 }
 
+/**
+ * Retrieves the user ID for a given username from the backend.
+ * @param username - The username to search for
+ * @returns Promise resolving to the user ID number
+ */
 export const getUserIdByUsername = async (username: string): Promise<number> => {
     const res = await authFetch(`${BASE_URL}/users/by_username/${username}`, {
         method: "GET",
@@ -162,7 +170,11 @@ export const getUserIdByUsername = async (username: string): Promise<number> => 
 }
 
 /**
- * Search users by prefix (returns array of User objects)
+ * Searches for users whose usernames start with the given prefix.
+ * Results are filtered to exclude users already in the specified chat if provided.
+ * @param prefix - The username prefix to search for
+ * @param limit - Maximum number of results to return (default: 5)
+ * @returns Promise resolving to an array of User objects matching the search
  */
 export const searchUsersByPrefix = async (prefix: string, limit = 5): Promise<User[]> => {
     try {
@@ -188,16 +200,6 @@ export const searchUsersByPrefix = async (prefix: string, limit = 5): Promise<Us
     }
 }
 
-// for the requests that require authentication, we will need to add the Authorization header with the token by using
-// the getToken() utility function defined above IN the headers :
-/*
- headers: {
-     "Content-Type": "application/json
-     "Authorization": `Bearer ${getToken()}`    // this will "take" the token from localStorage and add it to the request headers
-}
-*/
-
-
 /// CHATS (and MESSAGES)
 
 /**
@@ -210,7 +212,6 @@ export interface ChatDAO {
     user_id_2: number | null;
     group_name: string | null;
     last_message_at: string | null;
-    // Optional preview text of the last message (filled client-side when available)
     last_message_preview?: string | null;
     username_1: string | null;
     username_2: string | null;
@@ -227,7 +228,7 @@ export interface MessageDAO {
 export interface ChatMemberDAO {
     user_id: number;
     username: string;
-    status: string; // "member" or "invited"
+    status: string;
 }
 
 
@@ -236,7 +237,6 @@ export interface ChatMemberDAO {
  * @param dtos: chat json received from the backend
  * @returns ChatDAO object
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertToChatDAO(dto: any): ChatDAO | null {
     if (typeof dto.id !== 'number' || typeof dto.chat_type !== 'string') {
         console.warn("Not valid chat data : ", dto);
@@ -246,10 +246,10 @@ function convertToChatDAO(dto: any): ChatDAO | null {
     return {
         id: dto.id,
         chat_type: dto.chat_type,
-        user_id_1: dto.user_id_1, // Viene conservato come number | null
+        user_id_1: dto.user_id_1,
         user_id_2: dto.user_id_2,
         group_name: dto.group_name,
-        last_message_at: dto.last_message_at, // Viene conservato come string | null
+        last_message_at: dto.last_message_at,
         username_1: dto.username_1,
         username_2: dto.username_2,
     } as ChatDAO;
@@ -260,7 +260,6 @@ function convertToChatDAO(dto: any): ChatDAO | null {
  * @param dtos: json array received from the backend
  * @returns Array of ChatDAO objects
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertToChatDAOs(dtos: any[]): ChatDAO[] {
     return dtos.map(dto => {
         return convertToChatDAO(dto);
@@ -272,7 +271,6 @@ function convertToChatDAOs(dtos: any[]): ChatDAO[] {
  * @param dtos: message json received from the backend
  * @returns MessageDAO object
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertToMessageDAO(dto: any): MessageDAO | null {
     if (typeof dto.id !== 'number' || typeof dto.sender_id !== 'number' || typeof dto.content !== 'string' || typeof dto.sent_at !== 'string') {
         console.warn("Not valid message data : ", dto);
@@ -292,7 +290,6 @@ function convertToMessageDAO(dto: any): MessageDAO | null {
  * @param dtos: json array received from the backend
  * @returns Array of MessageDAO objects
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertToMessageDAOs(dtos: any[]): MessageDAO[] {
     return dtos.map(dto => {
         return convertToMessageDAO(dto);
@@ -300,8 +297,8 @@ function convertToMessageDAOs(dtos: any[]): MessageDAO[] {
 }
 
 /**
- * function to call the backend API endpoint for getting all chats for the authenticated user
- * @returns array of ChatDAO objects
+ * Retrieves all chats that the authenticated user is a member of.
+ * @returns Promise resolving to an array of ChatDAO objects
  */
 export const getChats = async (): Promise<ChatDAO[]> => {
     try {
@@ -323,9 +320,9 @@ export const getChats = async (): Promise<ChatDAO[]> => {
 }
 
 /**
- * function to call the backend API endpoint for creating a new private chat with another user
- * @param otherUserId: number - the ID of the other user to create the private chat with
- * @returns the ChatDAO object representing the newly created private chat
+ * Creates a new private chat with another user, or returns existing chat if one already exists.
+ * @param otherUserId - The ID of the user to create a private chat with
+ * @returns Promise resolving to the ChatDAO object representing the private chat
  */
 export const createNewPrivateChat = async (otherUserId: number): Promise<ChatDAO> => {
     try {
@@ -339,7 +336,6 @@ export const createNewPrivateChat = async (otherUserId: number): Promise<ChatDAO
         if (!res.ok) {
             throw await toApiError(res);
         }
-        // ora viene ritornato un JSON (con struttura ChatDAO) e non più solo l'ID
         const toRet = convertToChatDAO(await res.json());
         if (toRet === null) {
             throw new Error("Invalid chat data received from server");
@@ -352,9 +348,9 @@ export const createNewPrivateChat = async (otherUserId: number): Promise<ChatDAO
 }
 
 /**
- * function to call the backend API endpoint for creating a new group chat
- * @param groupName: string - the name of the new group chat
- * @returns the ID of the newly created group chat
+ * Creates a new group chat with the specified name.
+ * @param groupName - The name for the new group chat
+ * @returns Promise resolving to the ID of the newly created group chat
  */
 export const createNewGroupChat = async (groupName: string): Promise<number> => {
     try {
@@ -380,9 +376,9 @@ export const createNewGroupChat = async (groupName: string): Promise<number> => 
 }
 
 /**
- * function to call the backend API endpoint for getting all messages for a given chat
- * @param chatId: number - the ID of the chat to get messages for
- * @returns array of MessageDAO objects
+ * Retrieves all messages for a specific chat.
+ * @param chatId - The ID of the chat to get messages for
+ * @returns Promise resolving to an array of MessageDAO objects
  */
 export const getChatMessages = async (chatId: number): Promise<MessageDAO[]> => {
     try {
@@ -404,9 +400,8 @@ export const getChatMessages = async (chatId: number): Promise<MessageDAO[]> => 
 }
 
 /**
- * function to call the backend API endpoint for sending a new message to a given chat
- * @param payload: SendMessagePayload 
- * @returns boolean indicating success (true) or failure (false)
+ * Sends a new message to a specific chat.
+ * @param payload - Object containing chat_id and message content
  */
 export const sendChatMessage = async (payload: SendMessagePayload): Promise<void> => {
     try {
@@ -427,7 +422,6 @@ export const sendChatMessage = async (payload: SendMessagePayload): Promise<void
         throw error;
     }
 }
-
 
 /// INVITES
 
@@ -451,7 +445,6 @@ export interface InviteDAO {
  * @param dto: invite json received from the backend
  * @returns InviteDAO object
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertToInviteDAO(dto: any): InviteDAO | null {
     if (typeof dto.id !== 'number' || typeof dto.chat_id !== 'number' || typeof dto.sender_id !== 'number' || typeof dto.receiver_id !== 'number' || (dto.accepted !== null && typeof dto.accepted !== 'boolean') || typeof dto.sent_at !== 'string') {
         console.warn("Not valid invite data : ", dto);
@@ -474,7 +467,6 @@ function convertToInviteDAO(dto: any): InviteDAO | null {
  * @param dtos: json array received from the backend
  * @returns Array of InviteDAO objects
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function convertToInviteDAOs(dtos: any[]): InviteDAO[] {
     return dtos.map(dto => {
         return convertToInviteDAO(dto);
@@ -482,10 +474,9 @@ function convertToInviteDAOs(dtos: any[]): InviteDAO[] {
 }
 
 /**
- * function to call the backend API endpoint for inviting a user to a chat
- * @param sender_id: number - the ID of the user sending the invite
- * @param receiver_id: number - the ID of the user receiving the invite
- * @param chat_id: number - the ID of the chat to which the user is being invited
+ * Sends an invitation to a user to join a specific chat.
+ * @param receiver_id - The ID of the user to invite
+ * @param chat_id - The ID of the chat to invite the user to
  */
 export const inviteUser = async (receiver_id: number, chat_id: number): Promise<void> => {
     try {
@@ -509,8 +500,8 @@ export const inviteUser = async (receiver_id: number, chat_id: number): Promise<
 
 
 /**
- * function to call the backend API endpoint for getting all invites for the authenticated user
- * @returns array of InviteDAO objects
+ * Retrieves all pending chat invitations for the authenticated user.
+ * @returns Promise resolving to an array of InviteDAO objects
  */
 export const getInvites = async (): Promise<InviteDAO[]> => {
     try {
@@ -532,9 +523,9 @@ export const getInvites = async (): Promise<InviteDAO[]> => {
 }
 
 /**
- * function to call the backend API endpoint for accepting an invite
- * @param invite_id: number - the ID of the invite to accept
- * @returns the ID of the chat the user has been invited to and that has now joined in
+ * Accepts a chat invitation and adds the user to the corresponding chat.
+ * @param invite_id - The ID of the invitation to accept
+ * @returns Promise resolving to the chat ID that the user has joined
  */
 export const acceptInvite = async (invite_id: number): Promise<number> => {
     try {
@@ -561,8 +552,8 @@ export const acceptInvite = async (invite_id: number): Promise<number> => {
 }
 
 /**
- * function to call the backend API endpoint for rejecting an invite
- * @param invite_id: number - the ID of the invite to reject
+ * Rejects a chat invitation, removing it from the user's pending invites.
+ * @param invite_id - The ID of the invitation to reject
  */
 export const rejectInvite = async (invite_id: number): Promise<void> => {
     try {
@@ -584,7 +575,6 @@ export const rejectInvite = async (invite_id: number): Promise<void> => {
         throw error;
     }
 }
-
 
 // REAL-TIME COMMUNICATION (WEBSOCKET upgrade request) :
 
@@ -616,9 +606,9 @@ export interface ChatComponentDAO {
 }
 
 /**
- * function to call the backend API endpoint for getting chat components for a chat
- * @param chatId: number - the ID of the chat
- * @returns array of ChatComponentDAO objects
+ * Retrieves all components (members with roles) for a specific chat.
+ * @param chatId - The ID of the chat to get components for
+ * @returns Promise resolving to an array of ChatComponentDAO objects
  */
 export const getChatComponents = async (chatId: number): Promise<ChatComponentDAO[]> => {
     try {
@@ -640,9 +630,9 @@ export const getChatComponents = async (chatId: number): Promise<ChatComponentDA
 };
 
 /**
- * Function to get members and pending invites for a chat
- * @param chatId: number - the ID of the chat
- * @returns array of ChatMemberDAO objects
+ * Retrieves all members and pending invites for a specific chat.
+ * @param chatId - The ID of the chat to get members for
+ * @returns Promise resolving to an array of ChatMemberDAO objects
  */
 export const getChatMembers = async (chatId: number): Promise<ChatMemberDAO[]> => {
     try {
@@ -664,9 +654,9 @@ export const getChatMembers = async (chatId: number): Promise<ChatMemberDAO[]> =
 };
 
 /**
- * Function to remove a member from a chat
- * @param chatId: number - the ID of the chat
- * @param userId: number - the ID of the user to remove
+ * Removes a user from a chat group. Requires admin privileges.
+ * @param chatId - The ID of the chat to remove the member from
+ * @param userId - The ID of the user to remove from the chat
  */
 export const removeChatMember = async (chatId: number, userId: number): Promise<void> => {
     try {

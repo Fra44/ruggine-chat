@@ -1,3 +1,4 @@
+/* Root variables and global styles */
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -18,15 +19,19 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Link styling */
 a {
   font-weight: 500;
   color: var(--brand);
   text-decoration: inherit;
 }
+
+/* Link hover effect */
 a:hover {
   color: var(--brand-hover);
 }
 
+/* Body styling */
 body {
   margin: 0;
   /* Remove global centering to avoid layout shrinking of app containers */
@@ -34,11 +39,13 @@ body {
   min-height: 100vh;
 }
 
+/* H1 heading */
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
 }
 
+/* Button base styling */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -50,35 +57,47 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
+
+/* Button hover effect */
 button:hover {
   border-color: var(--brand);
 }
-/* Override Bootstrap primary button to use app brand */
+
+/* Override Bootstrap primary button */
 .btn-primary {
   background-color: var(--brand) !important;
   border-color: var(--brand) !important;
   color: white !important;
 }
+
+/* Primary button hover */
 .btn-primary:hover:not(:disabled) {
   background-color: var(--brand-hover) !important;
   border-color: var(--brand-hover) !important;
   box-shadow: 0 6px 20px rgba(var(--brand-rgb),0.18);
   transform: translateY(-2px);
 }
+
+/* Primary button focus */
 .btn-primary:focus,
 .btn-primary:focus-visible {
   box-shadow: 0 0 0 0.25rem rgba(var(--brand-rgb),0.25);
 }
+
+/* Primary button disabled */
 .btn-primary:disabled {
   opacity: 0.65;
   background-color: var(--brand) !important;
   border-color: var(--brand) !important;
 }
+
+/* Button focus outline */
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Light mode overrides */
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
@@ -92,28 +111,35 @@ button:focus-visible {
   }
 }
 
-/* Custom chat scrollbar: minimal, rounded, visible on hover or when needed (overflow:auto) */
-.chat-messages-container {
-  /* Firefox */
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent; /* thumb, track (hidden by default) */
-}
+/* Custom chat scrollbar */
+@supports (scrollbar-width: thin) {
+  .chat-messages-container {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
 
-.chat-messages-container:hover {
-  scrollbar-color: rgba(150,150,150,0.6) transparent; /* show thumb on hover */
+  .chat-messages-container:hover {
+    scrollbar-color: rgba(150,150,150,0.6) transparent;
+  }
 }
 
 /* WebKit browsers (Chrome, Edge, Safari) */
 .chat-messages-container::-webkit-scrollbar {
   width: 10px;
 }
+
+/* Scrollbar track styling */
 .chat-messages-container::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Scrollbar thumb styling */
 .chat-messages-container::-webkit-scrollbar-thumb {
   background: transparent; /* hidden by default */
   border-radius: 8px;
 }
+
+/* Scrollbar thumb on hover */
 .chat-messages-container:hover::-webkit-scrollbar-thumb {
   background: rgba(100,100,100,0.5);
 }
@@ -127,13 +153,18 @@ button:focus-visible {
 .message-bubble {
   color: inherit;
 }
+
+/* Other user's message bubble */
 .message-bubble.other-message {
   background-color: #FFFFFF;
 }
+
+/* Current user's message bubble */
 .message-bubble.my-message {
   background-color: rgba(var(--brand-rgb), 0.20);
 }
 
+/* Light mode message bubbles */
 @media (prefers-color-scheme: light) {
   .message-bubble.other-message {
     background-color: #FFFFFF;

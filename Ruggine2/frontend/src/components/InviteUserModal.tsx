@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
 import { Modal, Button, Form, Spinner, ListGroup } from 'react-bootstrap';
-import { useAppContext } from '../context/AppContext';
 import { searchUsersByPrefix, inviteUser } from '../api/api';
+import { useAppContext } from '../context/AppContext';
+import { useEffect, useState } from 'react';
 import type { User } from '../models/models';
 
 interface InviteUserModalProps {
@@ -10,20 +10,28 @@ interface InviteUserModalProps {
     chatId: number;
 }
 
+/**
+ * InviteUserModal component that allows group admins to search for and invite users to join a group chat.
+ * Provides real-time user search with debouncing, filters out existing group members,
+ * and handles invitation sending with loading states and error handling.
+ * @param show - Controls modal visibility
+ * @param onHide - Callback function to close the modal
+ * @param chatId - ID of the group chat to invite users to
+ */
 export default function InviteUserModal({ show, onHide, chatId }: InviteUserModalProps) {
     const { chatComponents } = useAppContext();
-    const [searchTerm, setSearchTerm] = useState('');
-    const [searchResults, setSearchResults] = useState<User[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [inviting, setInviting] = useState<number | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');                                         // Current search input value
+    const [searchResults, setSearchResults] = useState<User[]>([]);                           // Filtered search results
+    const [loading, setLoading] = useState(false);                                           // Loading state for search requests
+    const [inviting, setInviting] = useState<number | null>(null);                            // User ID currently being invited
 
+    // Debounced search for users when search term changes (minimum 3 characters)
     useEffect(() => {
         if (searchTerm.length > 2) {
             const search = async () => {
                 setLoading(true);
                 try {
                     const results = await searchUsersByPrefix(searchTerm);
-                    // Filter out users already in the chat
                     const filtered = results.filter(user =>
                         !chatComponents.some(comp => comp.user_id === user.id)
                     );
@@ -42,11 +50,15 @@ export default function InviteUserModal({ show, onHide, chatId }: InviteUserModa
         }
     }, [searchTerm, chatComponents]);
 
+    /**
+     * Sends an invitation to a user to join the group chat.
+     * Removes the user from search results after successful invitation.
+     * @param userId - The ID of the user to invite
+     */
     const handleInvite = async (userId: number) => {
         setInviting(userId);
         try {
             await inviteUser(userId, chatId);
-            // Remove from search results
             setSearchResults(prev => prev.filter(u => u.id !== userId));
         } catch (error) {
             console.error('Error inviting user:', error);
@@ -55,6 +67,10 @@ export default function InviteUserModal({ show, onHide, chatId }: InviteUserModa
         }
     };
 
+    /**
+     * Closes the modal and resets the search state.
+     * Clears search term and results to prepare for next use.
+     */
     const handleClose = () => {
         setSearchTerm('');
         setSearchResults([]);

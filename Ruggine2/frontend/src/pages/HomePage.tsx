@@ -1,22 +1,22 @@
-// pages/HomePage.tsx
-
-// Rimosso: import React, { useState, useEffect } from "react";
-import React, { useEffect, useState } from "react"; // Manteniamo React per JSX
 import { Container, Row, Spinner, Button, Modal, Form } from "react-bootstrap";
-// Rimosso: import { getChats, type ChatDAO, type MessageDAO, getChatMessages } from "../api/api";
-// Rimosso: import { type User } from "../models/models";
+import { useAppContext } from "../context/AppContext";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type { User } from "../models/models";
+import type { ChatDAO } from "../api/api";
 import ChatList from "../components/ChatList";
 import ChatWindow from "../components/ChatWindow";
-import { useNavigate } from "react-router-dom"; // Mantenuto solo per navigate
-
-import { useAppContext } from "../context/AppContext"; // Importiamo il Context
-import type { ChatDAO } from "../api/api";
-import type { User } from "../models/models";
 import { createNewPrivateChat, createNewGroupChat, getChats, getUserIdByUsername, inviteUser, searchUsersByPrefix } from "../api/api";
 
-// Rimosso: interface HomePageProps { user: User | null; }
-
-// Modificato: non riceve più props
+/**
+ * HomePage component — main layout for the messaging UI.
+ *
+ * Responsibilities:
+ * - Obtain global state and actions from `AppContext` (user, chats, messages).
+ * - Render the left column (search, new chat modal, chat list) and the
+ *   right column (selected chat window and message composer).
+ * - Provide helper functions to create chats and select a chat.
+ */
 export default function HomePage() {
     const {
         user,
@@ -25,46 +25,48 @@ export default function HomePage() {
         messages,
         loadingChats,
         loadingMessages,
-        setSelectedChat, // Funzione per selezionare la chat
-        logout, // Funzione di logout
-        // sendMessage, // Se volessi implementare la logica qui
-        //setChats, // <--- aggiunto dal context
+        setSelectedChat,
+        logout,
         refreshChats
-    } = useAppContext(); // Otteniamo tutti gli stati e le azioni dal Context
+    } = useAppContext();
 
     const navigate = useNavigate();
 
+    /**
+     * Redirect to the login page if there is no authenticated user.
+     */
     useEffect(() => {
         if (!user) {
-            // Questa condizione può essere rimossa se la logica di reindirizzamento
-            // è centralizzata nel Provider, ma è un buon fallback.
             navigate("/login");
         }
     }, []);
-    // Reindirizzamento se l'utente non è loggato (logica gestita meglio nel provider)
 
-
-    // Le logiche di caricamento iniziale e WS sono ora nel Context.
-    // L'UI è molto più pulita.
-
+    /**
+     * Select a chat from the list and update the Context-selected chat.
+     * @param chat ChatDAO object to select
+     */
     const handleSelectChat = (chat: ChatDAO) => {
         setSelectedChat(chat);
     };
 
 
-    const [search, setSearch] = useState("");
-    const [showModal, setShowModal] = useState(false);
-    const [username, setUsername] = useState("");
-    const [suggestions, setSuggestions] = useState<string[]>([]);
-    const [showSuggestions, setShowSuggestions] = useState(false);
-    const [activeSuggestion, setActiveSuggestion] = useState(0);
-    const [groupName, setGroupName] = useState("");
-    const [creating, setCreating] = useState(false);
-    const [error, setError] = useState("");
+    const [search, setSearch] = useState("");                         // Search term for filtering the chat list
+    const [showModal, setShowModal] = useState(false);                // Controls visibility of the new chat modal
+    const [username, setUsername] = useState("");                     // Input for usernames in the modal (semicolon/comma/space separated)
+    const [suggestions, setSuggestions] = useState<string[]>([]);     // List of username suggestions from API
+    const [showSuggestions, setShowSuggestions] = useState(false);    // Controls visibility of the suggestions dropdown
+    const [activeSuggestion, setActiveSuggestion] = useState(0);      // Index of the currently highlighted suggestion
+    const [groupName, setGroupName] = useState("");                   // Input for group name when creating a group chat
+    const [creating, setCreating] = useState(false);                  // Loading state during chat creation
+    const [error, setError] = useState("");                           // Error message for chat creation failures
     const debounceRef = React.useRef<number | null>(null);
     const requestIdRef = React.useRef(0);
 
-    // Funzione per creare una nuova chat privata
+    /**
+     * Create a private or group chat from modal input.
+     * Validates usernames, calls the appropriate API, refreshes chats,
+     * and selects the newly created chat if successful.
+     */
     const handleCreateChat = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
         setError("");
@@ -72,17 +74,16 @@ export default function HomePage() {
         try {
             const raw = username.trim();
             if (!raw) {
-                setError("Inserisci un username valido");
+                setError("Please enter a valid username");
                 setCreating(false);
                 return;
             }
 
-            // split usernames by semicolon, comma or whitespace
             const parts = raw.split(/[;,\s]+/).map(s => s.trim()).filter(Boolean);
 
             // validation: no self-invite and no duplicates (case-insensitive)
             if (!user) {
-                setError("Utente non autenticato");
+                setError("User not authenticated");
                 setCreating(false);
                 return;
             }
@@ -93,7 +94,7 @@ export default function HomePage() {
             for (const p of parts) {
                 const lp = p.toLowerCase();
                 if (lp === lowerSelf) {
-                    setError("Non puoi invitare te stesso nella chat.");
+                    setError("You cannot invite yourself to the chat.");
                     setCreating(false);
                     return;
                 }
@@ -105,13 +106,12 @@ export default function HomePage() {
                 }
             }
             if (dupes.length > 0) {
-                setError(`Hai inserito utenti duplicati: ${[...new Set(dupes)].join(', ')}`);
+                setError(`You entered duplicate users: ${[...new Set(dupes)].join(', ')}`);
                 setCreating(false);
                 return;
             }
 
                 if (uniqueParts.length === 1) {
-                // private chat
                 const otherUserId = await getUserIdByUsername(uniqueParts[0]);
                 const newChat = await createNewPrivateChat(otherUserId);
                     await refreshChats();
@@ -120,15 +120,13 @@ export default function HomePage() {
                 setGroupName("");
                 setSelectedChat(newChat);
             } else {
-                // group chat: create group then invite users
                 if (!groupName.trim()) {
-                    setError("Inserisci un nome per il gruppo");
+                    setError("Please enter a group name");
                     setCreating(false);
                     return;
                 }
                 const newGroupId = await createNewGroupChat(groupName.trim());
 
-                // try inviting each username; collect failures but continue
                 const inviteErrors: string[] = [];
                 for (const name of uniqueParts) {
                     try {
@@ -147,11 +145,11 @@ export default function HomePage() {
                 setGroupName("");
                 if (created) setSelectedChat(created);
                 if (inviteErrors.length > 0) {
-                    setError(`Non è stato possibile invitare: ${inviteErrors.join(", ")}`);
+                    setError(`Could not invite: ${inviteErrors.join(", ")}`);
                 }
             }
         } catch (e) {
-            setError("Errore nella creazione della chat: utente non trovato o chat già esistente");
+            setError("Error creating chat: user not found or chat already exists");
         } finally {
             setCreating(false);
         }
@@ -160,9 +158,10 @@ export default function HomePage() {
     return (
         <Container fluid className="homepage-container" style={{ marginLeft: '5%', marginRight: '5%', width: '90%', height: '90vh' }}>
             <Row className="h-100" style={{ display: 'flex', height: '100%' }}>
-                {/* ------------------------------------- */}
-                {/* COLONNA SINISTRA: CHAT LIST (30% larghezza) */}
-                {/* ------------------------------------- */}
+                {/* -------------------------------------------------- */}
+                {/*               LEFT COLUMN — Chat list              */}
+                {/* Contains search, new-chat button and the chat list */}
+                {/* -------------------------------------------------- */}
                 <div style={{ width: '30%', height: '100%', flexShrink: 0, minWidth: 0, display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }} className="chatlist-sidebar">
                     <div style={{ padding: '0 0.75rem' }}>
                         <div className="d-flex justify-content-between align-items-center mt-3 mb-2">
@@ -191,7 +190,7 @@ export default function HomePage() {
                         </div>
                     </div>
                     <div style={{ flex: 1, overflowY: 'auto' }}>
-                    {/* Modal per inserire username */}
+                    {/* Modal to enter usernames */}
                     <Modal show={showModal} onHide={() => setShowModal(false)} className="text-dark">
                         <Modal.Header closeButton>
                             <Modal.Title className="text-dark">New Chat</Modal.Title>
@@ -199,7 +198,7 @@ export default function HomePage() {
                         <Modal.Body>
                                         <Form onSubmit={handleCreateChat}>
                                             <Form.Group>
-                                                    <Form.Label className="text-dark">1 username = chat privata.<br/>1+ username = chat di gruppo (verrà richiesto il nome).</Form.Label>
+                                                    <Form.Label className="text-dark">1 username = private chat.<br/>1+ usernames = group chat.</Form.Label>
                                                 <div style={{ position: 'relative' }}>
                                                     <Form.Control
                                                         type="text"
@@ -207,8 +206,6 @@ export default function HomePage() {
                                                         onChange={e => {
                                                             const v = e.target.value;
                                                             setUsername(v);
-                                                            // debounce suggestion fetch
-                                                            // debounce suggestion fetch
                                                             if (debounceRef.current) window.clearTimeout(debounceRef.current);
                                                             const m = /([^;,\s]+)\s*$/.exec(v);
                                                             const token = m ? m[1] : '';
@@ -253,7 +250,6 @@ export default function HomePage() {
                                                                     e.preventDefault();
                                                                     const chosen = suggestions[activeSuggestion];
                                                                     if (chosen) {
-                                                                        // replace last token with chosen and append "; "
                                                                         const m = /([^;,\s]+)\s*$/.exec(username);
                                                                         let newVal = '';
                                                                         if (m && typeof m.index === 'number') {
@@ -295,12 +291,12 @@ export default function HomePage() {
                                         if (partsPreview.length > 1) {
                                             return (
                                                 <Form.Group className="mt-3">
-                                                    <Form.Label className="text-dark">Nome gruppo</Form.Label>
+                                                            <Form.Label className="text-dark">Group name</Form.Label>
                                                     <Form.Control
                                                         type="text"
                                                         value={groupName}
                                                         onChange={e => setGroupName(e.target.value)}
-                                                        placeholder="Inserisci il nome del gruppo"
+                                                                placeholder="Enter group name"
                                                         disabled={creating}
                                                         className="text-dark"
                                                     />
@@ -314,7 +310,7 @@ export default function HomePage() {
                         </Modal.Body>
                         <Modal.Footer>
                             <Button variant="secondary" onClick={() => setShowModal(false)} disabled={creating}>
-                                Annulla
+                                Cancel
                             </Button>
                                 <Button variant="primary" onClick={handleCreateChat} disabled={creating || !username.trim() || (username.split(/[;\s,]+/).map(s=>s.trim()).filter(Boolean).length>1 && !groupName.trim())}>
                                 {(() => {
@@ -334,16 +330,17 @@ export default function HomePage() {
                                 chats={chats}
                                 selectedChatId={selectedChat?.id}
                                 onSelectChat={handleSelectChat}
-                                user={user} // Passiamo l'utente dal Context
+                                user={user}
                                 search={search}
                             />
                         )}
                     </div>
                 </div>
 
-                {/* ------------------------------------- */}
-                {/* COLONNA DESTRA: FINESTRA MESSAGGI (60% larghezza) */}
-                {/* ------------------------------------- */}
+                {/* -------------------------------------------- */}
+                {/*        RIGHT COLUMN — Message window         */}
+                {/* Displays selected chat messages and Composer */}
+                {/* -------------------------------------------- */}
                 <div style={{ width: '60%', height: '100%', flexShrink: 0, minWidth: 0 }} className="chat-area-main p-0">
                     {user && (
                         <ChatWindow
@@ -352,7 +349,6 @@ export default function HomePage() {
                             loading={loadingMessages}
                             currentUser={user}
                             onClose={() => setSelectedChat(null)}
-                        // L'invio del messaggio sarà gestito da ChatWindow usando il Context
                         />
                     )}
                 </div>

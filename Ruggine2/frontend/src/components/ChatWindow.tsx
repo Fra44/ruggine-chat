@@ -1,12 +1,9 @@
-// components/ChatWindow.tsx
-
-import React, { useEffect, useRef, useState } from 'react';
-import { Card, Spinner, Button } from 'react-bootstrap';
-// Rimosso: import { type ChatDAO, type MessageDAO, type SendMessagePayload, sendChatMessage } from '../api/api';
 import { type ChatDAO, type MessageDAO, type ChatMemberDAO, getUsernameFromUserId, getChatMembers, removeChatMember } from '../api/api';
 import { formatToUTCPlus1, chatMessageDateHeader } from '../utils/time';
+import React, { useEffect, useRef, useState } from 'react';
+import { Card, Spinner, Button } from 'react-bootstrap';
+import { useAppContext } from '../context/AppContext';
 import { type User } from '../models/models';
-import { useAppContext } from '../context/AppContext'; // Importiamo il Context
 import InviteUserModal from './InviteUserModal';
 import MembersList from './MembersList';
 
@@ -14,44 +11,56 @@ interface ChatWindowProps {
     chat: ChatDAO | null;
     messages: MessageDAO[];
     loading: boolean;
-    currentUser: User; // Rimosso se provenisse dal Context, ma mantenuto per chiarezza di responsabilità
+    currentUser: User;
     onClose: () => void;
 }
 
+/**
+ * ChatWindow component that displays the chat interface for viewing and sending messages.
+ * Supports both private and group chats with real-time message display, member management for groups,
+ * and message input functionality. Handles message scrolling, username fetching, and admin controls.
+ * @param chat - The currently selected chat object, or null if no chat is selected
+ * @param messages - Array of messages to display in the chat
+ * @param loading - Loading state for message fetching
+ * @param currentUser - The authenticated user object
+ * @param onClose - Callback function to close the chat window
+ */
 const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, currentUser, onClose }) => {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const messagesContainerRef = useRef<HTMLDivElement | null>(null);
     const [messageText, setMessageText] = React.useState<string>("");
-    const [usernames, setUsernames] = useState<Record<number, string>>({}); // Cache per username
-    const [isSending, setIsSending] = useState(false); // Stato per disabilitare il bottone durante l'invio
+    const [usernames, setUsernames] = useState<Record<number, string>>({});
+    const [isSending, setIsSending] = useState(false);
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [showMembers, setShowMembers] = useState(false);
     const [members, setMembers] = useState<ChatMemberDAO[]>([]);
     const [loadingMembers, setLoadingMembers] = useState(false);
 
-    // Otteniamo la funzione di invio messaggio dal Context
     const { sendMessage, chatComponents } = useAppContext();
 
+    /**
+     * Handles sending a new message to the current chat.
+     * Validates input, sends the message via API, and clears the input field.
+     */
     const handleSendMessage = async () => {
         if (!chat || messageText.trim() === "" || isSending) return;
 
         setIsSending(true);
         try {
-            // Rimuoviamo la logica API locale e usiamo la funzione esposta dal Context
-            // che si occuperà di chiamare la REST API e il WS (se implementato)
             await sendMessage(chat.id, messageText.trim());
 
-            // Dato che il server invierà il messaggio tramite WS, 
-            // l'aggiornamento della UI avverrà automaticamente dal Context
             setMessageText("");
         } catch (e) {
             console.error("Error sending message:", e);
-            // Aggiungi un toast.error se necessario
         } finally {
             setIsSending(false);
         }
     }
 
+    /**
+     * Toggles the visibility of the group members list.
+     * When opening, fetches the current members from the server.
+     */
     const handleToggleMembers = async () => {
         if (showMembers) {
             setShowMembers(false);
@@ -64,28 +73,29 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                 setShowMembers(true);
             } catch (error) {
                 console.error("Error loading members:", error);
-                // Puoi aggiungere un toast di errore qui
             } finally {
                 setLoadingMembers(false);
             }
         }
     }
 
+    /**
+     * Removes a member from the current group chat.
+     * Only available to admin users. Refreshes the members list after removal.
+     * @param userId - The ID of the user to remove from the group
+     */
     const handleRemoveMember = async (userId: number) => {
         if (!chat) return;
         try {
             await removeChatMember(chat.id, userId);
-            // Refresh the members list
             const membersData = await getChatMembers(chat.id);
             setMembers(membersData);
         } catch (error) {
             console.error("Error removing member:", error);
-            // Show error toast
         }
     }
 
-    // Scorri in fondo quando i messaggi cambiano (solo il container dei messaggi,
-    // così non si scrolla la scrollbar globale dell'app)
+    // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
         const c = messagesContainerRef.current;
         if (c) {
@@ -101,18 +111,17 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-    // Reset showMembers when chat changes
+    // Reset members view when switching chats
     useEffect(() => {
         setShowMembers(false);
         setMembers([]);
     }, [chat]);
 
-    // Recupera username per sender_id non cachati
+    // Fetch usernames for message senders when messages change
     useEffect(() => {
         const fetchUsernames = async () => {
             const uniqueSenderIds = [...new Set(messages.map(m => m.sender_id))];
             const missingIds = uniqueSenderIds.filter(id => !usernames[id]);
-
             const promises = missingIds.map(async (id) => {
                 try {
                     const username = await getUsernameFromUserId(id);
@@ -122,7 +131,6 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
                     setUsernames(prev => ({ ...prev, [id]: `User ${id}` }));
                 }
             });
-
             await Promise.all(promises);
         };
 
@@ -139,12 +147,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
         );
     }
 
+    /**
+     * Determines the display name for the current chat based on its type and participants.
+     * @returns The appropriate display name for the chat
+     */
     const getChatName = (): string => {
         if (chat.chat_type === 'GROUP') {
             return chat.group_name || `Group Chat ${chat.id}`;
         } else if (chat.chat_type === 'PRIVATE') {
-            // Per chat private, mostra il nome dell'altro utente
-            if (chat.user_id_1 === currentUser?.id) { // Usiamo currentUser.id
+            if (chat.user_id_1 === currentUser?.id) {
                 return chat.username_2 || `Private Chat ${chat.id}`;
             } else {
                 return chat.username_1 || `Private Chat ${chat.id}`;
@@ -153,12 +164,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ chat, messages, loading, curren
         return `Chat ${chat.id}`;
     };
 
+    /**
+     * Checks if the current user has admin privileges in the group chat.
+     * @returns True if the user is an admin, false otherwise
+     */
     const isAdmin = (): boolean => {
         if (chat?.chat_type !== 'GROUP') return false;
         return chatComponents.some(comp => comp.user_id === currentUser?.id && comp.role === 'ADMIN');
     };
 
-    // ... (resto del codice JSX invariato)
     return (
         <div className="position-relative h-100" style={{ width: '100%', minWidth: 0 }}>
             <button type="button" className="btn-close position-absolute top-0 end-0 m-2" onClick={onClose} aria-label="Chiudi chat" style={{ zIndex: 10 }}></button>
