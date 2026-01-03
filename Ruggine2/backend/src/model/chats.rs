@@ -319,7 +319,7 @@ pub fn get_chat_members_and_invites(chat_id: i32) -> Result<Vec<ChatMemberDTO>, 
             members.push(ChatMemberDTO {
                 user_id: comp.user_id,
                 username,
-                status: "member".to_string(),
+                status: comp.role.to_string(),
             });
         }
     }

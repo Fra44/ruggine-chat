@@ -58,10 +58,10 @@ const MembersList: React.FC<MembersListProps> = ({ members, isAdmin, currentUser
                     <ListGroup.Item key={member.user_id} className="d-flex justify-content-between align-items-center">
                         {member.username}
                         <div className="d-flex align-items-center">
-                            <Badge bg={member.status === 'member' ? 'success' : 'warning'}>
-                                {member.status === 'member' ? 'Member' : 'Invited'}
+                            <Badge bg={member.status === 'MEMBER' ? 'success' : member.status === 'ADMIN' ? 'primary' : 'warning'}>
+                                {member.status === 'MEMBER' ? 'Member' : member.status === 'ADMIN' ? 'Admin' : 'Invited'}
                             </Badge>
-                            {isAdmin && member.user_id !== currentUserId && member.status === 'member' && (
+                            {isAdmin && member.user_id !== currentUserId && member.status === 'MEMBER' && (
                                 <span
                                     className="ms-2 text-danger"
                                     style={{ cursor: 'pointer', fontSize: '1.2em' }}
