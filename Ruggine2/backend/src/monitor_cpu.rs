@@ -6,7 +6,6 @@ use std::time::Duration;
 use sysinfo::{get_current_pid, Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
 /// Starts a background task that logs CPU usage of the current process every 2 minutes
-/// DECOMMENT TO CONTINUE IMPLEMENTATION
 pub fn start_logging() {
     actix_rt::spawn(async move {
         let mut sys = System::new_all();
