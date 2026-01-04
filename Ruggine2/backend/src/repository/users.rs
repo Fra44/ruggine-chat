@@ -1,7 +1,8 @@
-use crate::schema::users;
+use super::args::CreateUser;
 use super::db::establish_connection;
-use diesel::{ connection, prelude::* };
-use super::args::{ CreateUser };
+use crate::schema::users;
+use actix_web::web;
+use diesel::{connection, prelude::*};
 
 /**
  * Struct representing a new user to be inserted into the database.
@@ -21,7 +22,7 @@ pub struct NewUser<'a> {
 pub struct User {
     pub id: i32,
     pub username: String,
-    pub created_at: Option<chrono::NaiveDateTime>, 
+    pub created_at: Option<chrono::NaiveDateTime>,
     pub hashed_password: String,
 }
 
@@ -30,26 +31,28 @@ pub struct User {
  * # Arguments
  * `user` - A CreateUser struct containing the username and plain password of the user to be registered.
  */
-pub fn register_user(user: CreateUser) -> Result<User, String> {
+pub async fn register_user(user: CreateUser) -> Result<User, String> {
     println!("Registering new user with username: {:?}", user.username);
 
     use crate::schema::users::dsl::*;
 
     let mut connection = establish_connection();
 
-    // Hash the password using bcrypt
-    let hashed_pass = crate::auth::hash_password(&user.plain_password)?;
+    let plain_password = user.plain_password.clone();
+    let hashed_pass = web::block(move || crate::auth::hash_password(&plain_password))
+        .await
+        .map_err(|e| format!("Password hashing task failed: {e:?}"))?
+        .map_err(|e| format!("Password hashing failed: {e}"))?;
 
     let new_user = NewUser {
         username: &user.username,
         hashed_password: &hashed_pass,
     };
 
-    diesel
-        ::insert_into(users)
+    diesel::insert_into(users)
         .values(&new_user)
         .execute(&mut connection)
-        .map_err(|e| format!("Error saving new user: {}", e))?;
+        .map_err(|e| format!("Error saving new user: {e}"))?;
 
     // Return the newly created user
     find_user_by_username(&user.username)

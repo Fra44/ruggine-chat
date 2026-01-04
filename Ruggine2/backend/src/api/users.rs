@@ -74,7 +74,7 @@ pub async fn register_user(body: Json<CreateUser>) -> Result<HttpResponse, UserE
         return Err(UserError::UsernameAlreadyExists);
     }
 
-    match crate::repository::users::register_user(body.into_inner()) {
+    match crate::repository::users::register_user(body.into_inner()).await {
         Ok(user) => {
             let response = RegisterResponse {
                 user_id: user.id,
