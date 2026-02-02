@@ -27,3 +27,10 @@ actix-web-actors = "4.0"
 log = "0.4"
 url = "2.4"
 qstring = "0.7"
+
+[profile.release]
+opt-level = 'z'     # Ottimizza per la dimensione
+lto = true          # Abilita Link Time Optimization
+codegen-units = 1   # Riduce il parallelismo della compilazione per migliorare l'ottimizzazione
+panic = 'abort'     
+strip = true        # Rimuove simboli di debug
