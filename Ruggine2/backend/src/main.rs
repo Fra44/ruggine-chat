@@ -20,6 +20,8 @@ use actix_web::{
     HttpRequest,
     Result as ActixResult,
 };
+use std::io::Result;
+use monitor_cpu::start_logging;
 
 /// Application state shared across handlers
 pub struct AppState {
@@ -64,6 +66,8 @@ async fn main() -> Result<()> {
         std::env::set_var("RUST_BACKTRACE", "1");
         env_logger::init();
     }
+
+    start_logging();
 
     let chat_server = Arc::new(Mutex::new(ChatServer::new()));
     let to_use = chat_server.clone();

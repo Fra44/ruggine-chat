@@ -1,0 +1,64 @@
+import http from "k6/http";
+import { check, sleep } from "k6";
+
+const BASE_URL = __ENV.BASE_URL || "http://localhost:8080";
+const REGISTER_URL = `${BASE_URL}/api/users/register`;
+
+const PASSWORD = __ENV.PASSWORD || "Password123!";
+
+export const options = {
+  stages: [
+    { duration: "30s", target: 5 },
+    { duration: "1m", target: 5 },
+    { duration: "30s", target: 0 },
+  ],
+};
+
+function jsonHeaders() {
+  return { headers: { "Content-Type": "application/json" } };
+}
+
+function uniqueUsername() {
+  // fit DB constraint: username VARCHAR(25)
+  const vu = (__VU % 36).toString(36); // 1 char
+  const it = (__ITER % 1296).toString(36).padStart(2, "0"); // 2 chars
+  const t = (Date.now() % 0x10000000).toString(36).padStart(6, "0"); // 6 chars
+  const r = Math.floor(Math.random() * 0x1000)
+    .toString(36)
+    .padStart(3, "0"); // 3 chars
+  return `k6_${vu}${it}_${t}_${r}`;
+}
+
+export default function () {
+  // REGISTER with a unique username
+  let username = uniqueUsername();
+  let regRes;
+
+  // Small retry loop in case a collision err somehow happens (409)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const regPayload = JSON.stringify({
+      username,
+      plain_password: PASSWORD,
+    });
+
+    regRes = http.post(REGISTER_URL, regPayload, jsonHeaders());
+
+    if (regRes.status === 201) break;
+    if (regRes.status === 409) {
+      username = uniqueUsername();
+      continue;
+    }
+    break;
+  }
+
+  check(regRes, {
+    "register: status 201": (r) => r && r.status === 201,
+  });
+
+  if (!regRes || regRes.status !== 201) {
+    sleep(0.2);
+    return;
+  }
+
+  sleep(0.2);
+}
