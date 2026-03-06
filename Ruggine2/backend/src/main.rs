@@ -20,7 +20,6 @@ use actix_web::{
     HttpRequest,
     Result as ActixResult,
 };
-use std::io::Result;
 use monitor_cpu::start_logging;
 
 /// Application state shared across handlers
