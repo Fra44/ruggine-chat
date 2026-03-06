@@ -39,6 +39,7 @@ L'interfaccia è esposta tramite un'applicazione web, perciò qualsiasi disposit
 - Node.js: ≥ 18  
 - npm: ≥ 9.x (solitamente già incluso con Node 18)  
 - Rust: ≥ 1.63
+- k6: ≥ 1.6 (per eseguire gli stress test)
 
 ### Installazione ed avvio
 - Scaricare l'applicazione, in questi diversi "modi" :
@@ -48,6 +49,7 @@ L'interfaccia è esposta tramite un'applicazione web, perciò qualsiasi disposit
     - `frontend/` : contiene i file relativi al server React che si occupa di fornire le pagine al browser (UI)
     - `backend/` : contiene i file relativi al backend server dell'applicazione
     - `docker/` : contiene il dockerfile per lanciare un container che offre un servizio DB (postgres) per l'integrità dei dati.
+    - `stress-test/` : contiene lo script `stress.js` per eseguire gli stress test con k6
 1. **Installazione delle dipendenze :**
     - all'interno del folder `frontend/` eseguire il comando  
     ```npm install ```  
@@ -84,6 +86,13 @@ Questa contiene, sul lato sinistro, la lista (scorribile) delle chat a cui l'ute
     - ***Lista Messaggi*** : mostra i messaggi della chat selezionata, ordinati temporalmente e suddivisi per data. Inoltre contiene un textbox in cui inserire il nuovo messaggio da inviare all'interno della chat selezionata tramite il tasto di invio posizionato a destra del textbox.
     - ***Gestione Inviti***  
     quando un utente entra nell'applicazione, verrano mostrati a schermo, uno ad uno, gli inviti ancora in attesa di essere accettati (o rifiutati). Se gli inviti vengono ignorati, verranno mostrati al prossimo refresh della homepage
+3. **Stress Test e Monitoraggio delle Prestazioni**  
+Per eseguire lo stress test bisogna entrare nella directory `stress-test/` ed eseguire il comando:  
+```k6 run stress.js``` uppure ```npm run stress``` in automatico inizierà lo stress test, che simula diverse richieste parallele al server per una durata totale di 2 minuti. 
+Nel frattempo è possibile monitorare le prestazioni (CPU e RAM) del server, grazie al codice presente in `backend/src/monitor_cpu.rs` che ogni 2 minuti stampa in un file log in `backend/monitor_cpu.log` le informazioni relative alla CPU e alla RAM del server nel seguente formato:  
+```
+[Timestamp] CPU: X% | RAM: Y MB
+```
 
 ---
 
@@ -154,7 +163,10 @@ Vengono anche utilizzati WebSocket per la comunicazione in tempo reale tra clien
         - Diesel : ORM (Object-Relational Mapping) per interagire con il database PostgreSQL.
         - Tokio : runtime asincrono per Rust, utilizzato per gestire operazioni asincrone.
         - Serde : libreria per la serializzazione e deserializzazione di dati.
+        - sysinfo : libreria per ottenere informazioni su RAM e CPU per diversi OS, senza dover scrivere codice specifico per ogni piattaforma.
     - **Frontend (React + Vite)** :
         - React : libreria JavaScript 
         - Vite : fornisce un ambiente di sviluppo, con un semplice server che "trafferisce" i file al browser, trasformando al volo i file .jsx e/o .tsx in JavaScript standard, così da poter essere interpretati dal browser.
+    - **Stress Test** :
+        - k6 : strumento usato per fare stress test
 
