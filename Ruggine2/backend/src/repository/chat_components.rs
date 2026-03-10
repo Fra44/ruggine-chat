@@ -1,21 +1,24 @@
 use crate::{ repository::args::AddUserToChat, schema::chat_components };
 use super::db::establish_connection;
-use diesel::{ connection, prelude::* };
-use super::args::{};
+use diesel::prelude::*;
 
+/// Struct representing a new chat component to be inserted into the database.
+/// Contains the chat ID, user ID, and role for the component.
 #[derive(Insertable)]
 #[table_name = "chat_components"]
 pub struct NewChatComponent<'a> {
     pub chat_id: i32,
     pub user_id: i32,
-    pub role: &'a str, // "ADMIN" or "MEMBER"
+    pub role: &'a str,
 }
 
+/// Struct representing a chat component record from the database.
+/// Links a user to a chat with their assigned role (e.g., 'ADMIN', 'MEMBER').
 #[derive(Queryable, Debug, AsChangeset)]
 pub struct ChatComponent {
     pub chat_id: i32,
     pub user_id: i32,
-    pub role: String, // "ADMIN" or "MEMBER"
+    pub role: String,
 }
 
 /**
@@ -23,6 +26,9 @@ pub struct ChatComponent {
  * (this can be called when creating a group chat to add the creator as ADMIN, or when accepting an invite to add the invited user as MEMBER)
  * # Arguments
  * `chat_component` - An AddUserToChat struct containing the chat component details.
+ * # Returns
+ * A Result<(), String> which is Ok(()) if the component was added successfully,
+ * Err(String) if there was an error.
  */
 pub fn add_chat_component(chat_component: AddUserToChat) -> Result<(), String> {
     println!(

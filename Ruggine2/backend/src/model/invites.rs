@@ -1,29 +1,27 @@
-/* This file contains the utilities to "use" an Invite object WITHOUT directly interacting with the one
- * extracted/inserted from/to the DB */
-
 use serde::{ Serialize, Deserialize };
-
-use crate::{
-    repository::{
+use crate::repository::{
         args::CreateInvite,
-        invites::{ accept_invite, create_invite, get_invited_user_from_invite_id, reject_invite },
-    },
-    schema::chat_components::chat_id,
-};
+        invites::{ get_invited_user_from_invite_id, reject_invite },
+    };
 
+/// Data Transfer Object for invites sent to the client.
+/// Includes enriched data like sender username and group name.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InviteDTO {
     pub id: i32,
     pub chat_id: Option<i32>,
     pub sender_id: Option<i32>,
     pub receiver_id: Option<i32>,
-    pub accepted: Option<bool>, // can only be NULL (pending), TRUE (accepted) or FALSE (rejected)
+    pub accepted: Option<bool>,
     pub sent_at: String,
+    pub sender_username: Option<String>,
+    pub group_name: Option<String>,
 }
 
+/// Implementation to convert a repository Invite to an InviteDTO with enriched data.
 impl From<crate::repository::invites::Invite> for InviteDTO {
     fn from(invite: crate::repository::invites::Invite) -> Self {
-        InviteDTO {
+        let mut dto = InviteDTO {
             id: invite.id,
             chat_id: invite.chat_id,
             sender_id: invite.sender_id,
@@ -33,12 +31,26 @@ impl From<crate::repository::invites::Invite> for InviteDTO {
                 Some(dt) => dt.format("%Y-%m-%d %H:%M:%S").to_string(),
                 None => "N/A".to_string(),
             },
+            sender_username: None,
+            group_name: None,
+        };
+
+        if let Some(sid) = dto.sender_id {
+            if let Some(user) = crate::repository::users::find_user_by_id(sid) {
+                dto.sender_username = Some(user.username);
+            }
         }
+
+        if let Some(cid) = dto.chat_id {
+            if let Some(chat) = crate::repository::chats::get_chat_by_id(cid) {
+                dto.group_name = chat.group_name;
+            }
+        }
+        dto
     }
 }
 
 /// Function to map a vector of Invite objects (directly retrieved from DB) to a vector of InviteDTO objects
-/// (that are the business-logic version of Invite)
 /// # Arguments
 /// `invites` - A vector of Invite objects retrieved from the database.
 /// # Returns
@@ -48,7 +60,6 @@ pub fn map_invites_to_dto(invites: Vec<crate::repository::invites::Invite>) -> V
 }
 
 /// Function to map a single Invite object (directly retrieved from DB) to an InviteDTO object
-/// (that is the business-logic version of Invite)
 /// # Arguments
 /// `invite` - An Invite object retrieved from the database.
 /// # Returns
@@ -77,7 +88,6 @@ pub fn accept_invite_model(invite_id: i32, accepting_user: i32) -> Result<i32, S
         let res = crate::repository::invites::accept_invite(action);
         match res {
             Ok(chat_id_) => {
-                // now we add the user to the chat as MEMBER
                 let add_component_payload = crate::repository::args::AddUserToChat {
                     chat_id: chat_id_,
                     user_id: accepting_user,
@@ -145,8 +155,16 @@ pub fn get_user_invites(user_id: i32) -> Result<Vec<InviteDTO>, String> {
     }
 }
 
+/// Function to create an invite for a user to join a group chat.
+/// Performs validation checks: users exist, chat is group, sender is in chat, receiver not in chat, no pending invite.
+/// # Arguments
+/// `user_id_sender` - The ID of the user sending the invite.
+/// `user_id_receiver` - The ID of the user receiving the invite.
+/// `chat_id_` - The ID of the group chat to invite to.
+/// # Returns
+/// A Result<i32, String> which is Ok(invite_id) if the invite was created successfully,
+/// Err(String) if there was a validation error or database failure.
 pub fn create_invite_for_user(user_id_sender: i32, user_id_receiver: i32, chat_id_: i32) -> Result<i32, String> {
-    // we check that user exists
     let user_exists = crate::repository::users::find_user_by_id(user_id_sender);
     if user_exists.is_none() {
         return Err("USER_SENDER_NOT_FOUND".to_string());
@@ -155,7 +173,6 @@ pub fn create_invite_for_user(user_id_sender: i32, user_id_receiver: i32, chat_i
     if user_exists.is_none() {
         return Err("USER_RECEIVER_NOT_FOUND".to_string());
     }
-    // we check that chat exists and it is a GROUP chat
     let chat_type_res = crate::repository::chats::get_chat_type(chat_id_);
     match chat_type_res {
         Ok(chat_type) => {
@@ -168,7 +185,6 @@ pub fn create_invite_for_user(user_id_sender: i32, user_id_receiver: i32, chat_i
         }
     }
 
-    // we check that sender is part of the chat
     let is_part_res = crate::repository::chats::is_user_part_of_group_chat(user_id_sender, chat_id_);
     match is_part_res {
         Ok(is) => {
@@ -181,15 +197,12 @@ pub fn create_invite_for_user(user_id_sender: i32, user_id_receiver: i32, chat_i
         }
     }
 
-    // we check that user is NOT already part of the chat
     let is_part_res = crate::repository::chats::is_user_part_of_group_chat(user_id_receiver, chat_id_);
     match is_part_res {
         Ok(is) => {
             if is {
                 return Err("USER_ALREADY_IN_CHAT".to_string());
             } else {
-                // here it is NOT part of the chat
-                // we check that there is no PENDING invite for that user to that chat
                 let existing_invites_res =
                     crate::repository::invites::get_invites_for_user(user_id_receiver);
                 match existing_invites_res {
@@ -199,7 +212,6 @@ pub fn create_invite_for_user(user_id_sender: i32, user_id_receiver: i32, chat_i
                                 return Err("PENDING_INVITE_ALREADY_EXISTS".to_string());
                             }
                         }
-                        // if we reach here, it means there is no pending invite for that user to that chat
                         let create_payload = CreateInvite {
                             chat_id: Some(chat_id_),
                             sender_id: Some(user_id_sender),

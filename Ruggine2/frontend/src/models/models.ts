@@ -1,23 +1,26 @@
 /**
- * User model interface
+ * User model interface representing a basic user entity.
  */
 export interface User {
-    user_id: number;
+    id: number;
     username: string;
 }
 
 /**
- * Authenticated User model interface extending User with the token info
- * (this might be useless as the token should be stored separately) 
+ * Authenticated User model interface extending User with authentication token.
  */
 export interface AuthenticatedUser extends User {
     token: string;
 }
 
-// ERROR HANDLERS :
-
+/**
+ * Type for field validation errors, mapping field names to error messages.
+ */
 export type FieldErrors = Record<string, string | string[]>;
 
+/**
+ * Custom error class for API-related errors with additional metadata.
+ */
 export class ApiError extends Error {
     status: number;
     errors?: FieldErrors;
@@ -38,12 +41,23 @@ export class ApiError extends Error {
     }
 }
 
+/**
+ * Type guard to check if an unknown error is an ApiError instance.
+ * @param err - The error to check
+ * @returns True if the error is an ApiError, false otherwise
+ */
 export const isApiError = (err: unknown): err is ApiError =>
     typeof err === "object" &&
     err !== null &&
     "name" in (err as Record<string, unknown>) &&
     (err as { name?: unknown }).name === "ApiError";
 
+/**
+ * Converts a Response object to an ApiError instance.
+ * Attempts to parse JSON response for error details, falls back to text or status.
+ * @param res - The Response object from a failed API call
+ * @returns A Promise that resolves to an ApiError instance
+ */
 export const toApiError = async (res: Response): Promise<ApiError> => {
     try {
         const data = await res.json();

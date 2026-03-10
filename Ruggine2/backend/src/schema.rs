@@ -1,5 +1,5 @@
-// @generated automatically by Diesel CLI.
-
+/// Table for chat components - defines user roles within group chats
+/// Links users to chats with their assigned roles (e.g., 'ADMIN', 'MEMBER')
 diesel::table! {
     chat_components (chat_id, user_id) {
         chat_id -> Int4,
@@ -9,6 +9,8 @@ diesel::table! {
     }
 }
 
+/// Table for chats - stores information about all chat conversations
+/// Supports both private (user-to-user) and group chats
 diesel::table! {
     chats (id) {
         id -> Int4,
@@ -23,6 +25,8 @@ diesel::table! {
     }
 }
 
+/// Table for chat invites - manages pending invitations to join chats
+/// Tracks who sent the invite, who received it, and its acceptance status
 diesel::table! {
     invites (id) {
         id -> Int4,
@@ -34,6 +38,8 @@ diesel::table! {
     }
 }
 
+/// Table for messages - stores all chat messages with their content and metadata
+/// Links messages to their sending user and containing chat
 diesel::table! {
     messages (id) {
         id -> Int4,
@@ -44,6 +50,8 @@ diesel::table! {
     }
 }
 
+/// Table for users - stores user account information
+/// Contains authentication data and profile information
 diesel::table! {
     users (id) {
         id -> Int4,
@@ -55,10 +63,14 @@ diesel::table! {
     }
 }
 
+// Table relationships - defines how tables can be joined together
+// These allow Diesel to perform SQL joins between related tables
 diesel::joinable!(chat_components -> chats (chat_id));
 diesel::joinable!(chat_components -> users (user_id));
 diesel::joinable!(invites -> chats (chat_id));
 diesel::joinable!(messages -> chats (chat_id));
 diesel::joinable!(messages -> users (sender_id));
 
+// Allow these tables to be queried together in complex SQL statements
+// This enables Diesel to generate queries that span multiple tables
 diesel::allow_tables_to_appear_in_same_query!(chat_components, chats, invites, messages, users,);

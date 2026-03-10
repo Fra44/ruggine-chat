@@ -1,11 +1,17 @@
+/* Root variables and global styles */
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
+  /* Brand color (replaces previous blue tones) */
+  --brand: #B7410E;
+  --brand-rgb: 183,65,14;
+  --brand-hover: #92340B;
+
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #121212;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,28 +19,33 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Link styling */
 a {
   font-weight: 500;
-  color: #646cff;
+  color: var(--brand);
   text-decoration: inherit;
 }
+
+/* Link hover effect */
 a:hover {
-  color: #535bf2;
+  color: var(--brand-hover);
 }
 
+/* Body styling */
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  /* Remove global centering to avoid layout shrinking of app containers */
   min-width: 320px;
   min-height: 100vh;
 }
 
+/* H1 heading */
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
 }
 
+/* Button base styling */
 button {
   border-radius: 8px;
   border: 1px solid transparent;
@@ -46,23 +57,131 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
+
+/* Button hover effect */
 button:hover {
-  border-color: #646cff;
+  border-color: var(--brand);
 }
+
+/* Override Bootstrap primary button */
+.btn-primary {
+  background-color: var(--brand) !important;
+  border-color: var(--brand) !important;
+  color: white !important;
+}
+
+/* Primary button hover */
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--brand-hover) !important;
+  border-color: var(--brand-hover) !important;
+  box-shadow: 0 6px 20px rgba(var(--brand-rgb),0.18);
+  transform: translateY(-2px);
+}
+
+/* Primary button focus */
+.btn-primary:focus,
+.btn-primary:focus-visible {
+  box-shadow: 0 0 0 0.25rem rgba(var(--brand-rgb),0.25);
+}
+
+/* Primary button disabled */
+.btn-primary:disabled {
+  opacity: 0.65;
+  background-color: var(--brand) !important;
+  border-color: var(--brand) !important;
+}
+
+/* Button focus outline */
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+/* Light mode overrides */
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
     background-color: #ffffff;
   }
   a:hover {
-    color: #747bff;
+    color: var(--brand-hover);
   }
   button {
     background-color: #f9f9f9;
   }
+}
+
+/* Custom chat scrollbar */
+@supports (scrollbar-width: thin) {
+  .chat-messages-container {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .chat-messages-container:hover {
+    scrollbar-color: rgba(150,150,150,0.6) transparent;
+  }
+}
+
+/* WebKit browsers (Chrome, Edge, Safari) */
+.chat-messages-container::-webkit-scrollbar {
+  width: 10px;
+}
+
+/* Scrollbar track styling */
+.chat-messages-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Scrollbar thumb styling */
+.chat-messages-container::-webkit-scrollbar-thumb {
+  background: transparent; /* hidden by default */
+  border-radius: 8px;
+}
+
+/* Scrollbar thumb on hover */
+.chat-messages-container:hover::-webkit-scrollbar-thumb {
+  background: rgba(100,100,100,0.5);
+}
+
+/* Ensure content doesn't go under the scrollbar on some platforms */
+.chat-messages-container .messages-list {
+  padding-right: 6px;
+}
+
+/* Message bubble styling using brand color for user's messages */
+.message-bubble {
+  color: inherit;
+}
+
+/* Other user's message bubble */
+.message-bubble.other-message {
+  background-color: #FFFFFF;
+}
+
+/* Current user's message bubble */
+.message-bubble.my-message {
+  background-color: rgba(var(--brand-rgb), 0.20);
+}
+
+/* Light mode message bubbles */
+@media (prefers-color-scheme: light) {
+  .message-bubble.other-message {
+    background-color: #FFFFFF;
+    color: #000;
+  }
+  .message-bubble.my-message {
+    background-color: rgba(var(--brand-rgb), 0.12);
+    color: #000;
+  }
+}
+
+/* Date separator inside chat window */
+.date-separator {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: rgba(200,200,200,0.12);
+  color: rgba(200,200,200,0.95);
+  font-weight: 600;
 }

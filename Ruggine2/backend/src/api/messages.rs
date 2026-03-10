@@ -1,32 +1,33 @@
-use std::{ fmt, path };
 use actix_web::{
     HttpRequest,
     HttpResponse,
     Responder,
     web,
-    body,
-    error::ResponseError,
     get,
-    http::{ StatusCode, header::ContentType },
     post,
-    put,
-    web::{ Data, Json, Path },
+    web::{ Json, Path },
 };
 use serde::{ Deserialize, Serialize };
 use crate::{
     AppState,
-    auth::{ Claims, extractor::extract_claims_from_request },
-    model::{ chats::is_user_part_of_chat, messages::{ map_message_to_dto, map_messages_to_dto } },
-    repository::args::{ CreateUser, LoginUser },
-    schema::chat_components::user_id,
+    auth::extractor::extract_claims_from_request,
+    model::{ chats::is_user_part_of_chat, messages::map_messages_to_dto },
 };
 
+/// Payload structure for sending a message, containing the message content
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SendMessagePayload {
     pub content: String,
 }
 
-/// API endpoint to get all messages from a specific chat
+/**
+ * API endpoint to get all messages from a specific chat.
+ * # Arguments
+ * `req` - The HTTP request containing authentication headers.
+ * `path` - The chat ID as a path parameter.
+ * # Returns
+ * An HttpResponse containing the list of messages in JSON format or an error response.
+ */
 #[get("/{chat_id}/messages")]
 pub async fn get_chat_messages(req: HttpRequest, path: Path<i32>) -> impl Responder {
     let chat_id: i32 = path.into_inner();
@@ -58,7 +59,16 @@ pub async fn get_chat_messages(req: HttpRequest, path: Path<i32>) -> impl Respon
     }
 }
 
-/// API endpoint to send a message to a specific chat
+/**
+ * API endpoint to send a message to a specific chat.
+ * # Arguments
+ * `req` - The HTTP request containing authentication headers.
+ * `path` - The chat ID as a path parameter.
+ * `body` - The JSON payload containing the message content.
+ * `chat_server_data` - Shared application state for WebSocket server.
+ * # Returns
+ * An HttpResponse indicating success or an error response.
+ */
 #[post("/{chat_id}/messages")]
 pub async fn post_chat_message(
     req: HttpRequest,
@@ -89,7 +99,6 @@ pub async fn post_chat_message(
                             );
                         }
 
-                        // here we notify via WebSocket the new message to all chat participants
                         let chat_server = &chat_server_data.chat_server;
                         let event_type = crate::web_socket::WsEventType::NewMessage;
                         let msg_dto = send_res.unwrap();

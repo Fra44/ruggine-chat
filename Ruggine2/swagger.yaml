@@ -1,0 +1,213 @@
+openapi: 3.0.0
+info:
+  title: RUGGINE API Documentation
+  description: Documentazione delle REST API per l'applicazione di messaggistica "Ruggine".
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: Server di sviluppo locale
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # --- Users ---
+    LoginRequest:
+      type: object
+      required: [username, plain_password]
+      properties:
+        username: { type: string }
+        plain_password: { type: string }
+
+    LoginResponse:
+      type: object
+      properties:
+        token: { type: string }
+        user_id: { type: integer }
+        username: { type: string }
+
+    CreateUserRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string }
+
+    # --- Chats ---
+    CreateGroupRequest:
+      type: object
+      required: [group_name]
+      properties:
+        group_name: { type: string }
+
+    # --- Messages ---
+    SendMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string }
+
+    # --- Invites ---
+    SendInviteRequest:
+      type: object
+      required: [chat_id, receiver_id]
+      properties:
+        chat_id: { type: integer }
+        receiver_id: { type: integer }
+
+paths:
+  # === USERS ===
+  /users/register:
+    post:
+      tags: [Users]
+      summary: Registra un nuovo utente
+      responses:
+        201: { description: Utente creato }
+        409: { description: Username già esistente }
+
+  /users/login:
+    post:
+      tags: [Users]
+      summary: Effettua il login
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        200:
+          description: Login successo
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        401: { description: Credenziali invalide }
+
+  /users/search:
+    get:
+      tags: [Users]
+      summary: Cerca utenti per prefisso
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: prefix
+          in: query
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 5 }
+      responses:
+        200: { description: Lista utenti trovati }
+
+  # === CHATS ===
+  /chats/:
+    get:
+      tags: [Chats]
+      summary: Ottieni tutte le chat dell'utente autenticato
+      security: [{ bearerAuth: [] }]
+      responses:
+        200: { description: Array di chat }
+
+  /chats/new_group:
+    post:
+      tags: [Chats]
+      summary: Crea una nuova chat di gruppo
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateGroupRequest" }
+      responses:
+        200: { description: ID del nuovo gruppo }
+
+  /chats/new_private/{other_user_id}:
+    get:
+      tags: [Chats]
+      summary: Crea una nuova chat privata con un altro utente
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: other_user_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        200: { description: Oggetto chat creata }
+
+  # === MESSAGES ===
+  /chats/{chat_id}/messages:
+    get:
+      tags: [Messages]
+      summary: Ottieni tutti i messaggi di una chat
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: chat_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        200: { description: Lista messaggi }
+    post:
+      tags: [Messages]
+      summary: Invia un messaggio in una chat
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: chat_id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SendMessageRequest" }
+      responses:
+        200: { description: Messaggio inviato }
+
+  # === INVITES ===
+  /invites/:
+    get:
+      tags: [Invites]
+      summary: Ottieni tutti gli inviti ricevuti
+      security: [{ bearerAuth: [] }]
+      responses:
+        200: { description: Lista inviti }
+
+  /invites/create:
+    post:
+      tags: [Invites]
+      summary: Invita un utente in una chat
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SendInviteRequest" }
+      responses:
+        200: { description: Invito inviato }
+
+  /invites/accept/{invite_id}:
+    get:
+      tags: [Invites]
+      summary: Accetta un invito
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: invite_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        200: { description: ID della chat a cui sei stato aggiunto }
+
+  /invites/reject/{invite_id}:
+    get:
+      tags: [Invites]
+      summary: Rifiuta un invito
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: invite_id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        200: { description: Invito rifiutato correttamente }

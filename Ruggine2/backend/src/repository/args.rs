@@ -1,10 +1,9 @@
-/* This file contains all the structs related to the JSON-format datas sent
-by the user through HTTP requests */
 use serde::{Deserialize, Serialize};
 
 /* USERS ----------------------------------------------------------------------------------------- */
+
 /**
- * datas received from the client to create a new user
+ * Data structure received from the client to create a new user.
  * # Fields
  * `username` - the username of the new user
  * `plain_password` - the plain password of the new user
@@ -16,10 +15,10 @@ pub struct CreateUser {
 }
 
 /**
- * datas received from the client to login 
+ * Data structure received from the client to log in.
  * # Fields
- * `username` - the username of the user trying to login
- * `plain_password` - the plain password of the user trying to login (will be hashed and verified on backend)
+ * `username` - the username of the user trying to log in
+ * `plain_password` - the plain password of the user trying to log in (will be hashed and verified on backend)
  */
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoginUser {
@@ -28,8 +27,9 @@ pub struct LoginUser {
 }
 
 /* CHATS ----------------------------------------------------------------------------------------- */
+
 /**
- * datas received from the client to create a new private chat 
+ * Data structure received from the client to create a new private chat.
  * # Fields
  * `chat_type` - the type of chat, must be "PRIVATE"
  * `user_id_1` - one of the two users in the private chat (usually the one who is creating/starting it)
@@ -44,9 +44,9 @@ pub struct CreatePrivateChat {
 }
 
 /**
- * datas received from the client to create a new user
+ * Data structure received from the client to create a new group chat.
  * # Fields
- * `chat_type` - the type of chat, must be "group"
+ * `chat_type` - the type of chat, must be "GROUP"
  * `creator_id` - the user who is creating the group chat
  * `group_name` - the name of the group chat
  */
@@ -61,7 +61,7 @@ pub struct CreateGroupChat {
 /* CHAT COMPONENTS --------------------------------------------------------------------------------- */
 
 /**
- * datas received from the client to add a user to a chat as a chat component
+ * Data structure used to add a user to a chat as a chat component.
  * # Fields
  * `chat_id` - the chat to which the user is being added
  * `user_id` - the user being added to the chat
@@ -76,9 +76,9 @@ pub struct AddUserToChat {
 /* INVITES ----------------------------------------------------------------------------------------- */
 
 /**
- * datas received from the client to create a new invite 
+ * Data structure received from the client to create a new invite.
  * # Fields
- * `chat_id` - the chat (groupchat) to which the invite refers
+ * `chat_id` - the chat (group chat) to which the invite refers
  * `sender_id` - the user who is sending the invite
  * `receiver_id` - the user who is receiving the invite
  */
@@ -90,7 +90,7 @@ pub struct CreateInvite {
 }
 
 /**
- * datas received from the client to accept OR reject an invite
+ * Data structure received from the client to accept or reject an invite.
  * # Fields
  * `invite_id` - the invite to be acted upon
  */
@@ -102,8 +102,8 @@ pub struct ActionOnInvite {
 /* MESSAGES ----------------------------------------------------------------------------------------- */
 
 /**
- * datas received from the client to send/create a new message, this is used 
- * in both cases of private chat and group chat (the chat_id refers to either one)
+ * Data structure received from the client to send/create a new message.
+ * Used for both private and group chats (the chat_id refers to either one).
  * # Fields
  * `chat_id` - the chat to which the message belongs
  * `sender_id` - the user who is sending the message

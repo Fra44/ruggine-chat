@@ -18,7 +18,7 @@ pub struct NewUser<'a> {
  * Struct representing a user retrieved from the database.
  * (used also to MODIFY an existing user)
  */
-#[derive(Queryable, Debug, AsChangeset)]
+#[derive(Queryable, Debug, AsChangeset, serde::Serialize)]
 pub struct User {
     pub id: i32,
     pub username: String,
@@ -28,8 +28,11 @@ pub struct User {
 
 /**
  * Repository level function that inserts a new user into the database.
+ * Handles password hashing before storing and returns the created user.
  * # Arguments
  * `user` - A CreateUser struct containing the username and plain password of the user to be registered.
+ * # Returns
+ * Result<User, String> - The created user on success, or an error message on failure
  */
 pub async fn register_user(user: CreateUser) -> Result<User, String> {
     println!("Registering new user with username: {:?}", user.username);
@@ -54,13 +57,14 @@ pub async fn register_user(user: CreateUser) -> Result<User, String> {
         .execute(&mut connection)
         .map_err(|e| format!("Error saving new user: {e}"))?;
 
-    // Return the newly created user
+    // Retrieve and return the newly created user
     find_user_by_username(&user.username)
         .ok_or_else(|| "Failed to retrieve newly created user".to_string())
 }
 
 /**
  * Repository level function that retrieves a user by username from the database.
+ * Performs a case-sensitive search for exact username match.
  * # Arguments
  * `target_username` - A string slice representing the username of the user to be retrieved.
  * # Returns
@@ -98,4 +102,27 @@ pub fn find_user_by_id(target_id: i32) -> Option<User> {
         .expect("Error loading user");
 
     result
+}
+
+/**
+ * Search for users by username prefix using case-insensitive pattern matching.
+ * Returns up to the specified limit of results, useful for user search/autocomplete features.
+ * # Arguments
+ * `prefix` - The username prefix to search for (case-insensitive)
+ * `limit_results` - Maximum number of results to return
+ * # Returns
+ * Result<Vec<User>, String> - Vector of matching users on success, or error message on failure
+ */
+pub fn search_users_by_prefix(prefix: &str, limit_results: i64) -> Result<Vec<User>, String> {
+    use crate::schema::users::dsl::*;
+    let mut connection = establish_connection();
+
+    let pattern = format!("{}%", prefix);
+    let results = users
+        .filter(username.ilike(pattern))
+        .limit(limit_results)
+        .load::<User>(&mut connection)
+        .map_err(|e| format!("DB error searching users: {}", e))?;
+
+    Ok(results)
 }

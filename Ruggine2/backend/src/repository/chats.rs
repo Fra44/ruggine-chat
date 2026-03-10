@@ -1,8 +1,7 @@
-use crate::schema::chats;
-use super::db::establish_connection;
-use diesel::{ connection, prelude::* };
-use serde::{ Deserialize, Serialize };
 use super::args::{ CreatePrivateChat, CreateGroupChat };
+use super::db::establish_connection;
+use crate::schema::chats;
+use diesel::prelude::*;
 
 /**
  * Struct representing a new chat to be inserted into the database.
@@ -10,16 +9,16 @@ use super::args::{ CreatePrivateChat, CreateGroupChat };
 #[derive(Insertable)]
 #[table_name = "chats"]
 pub struct NewChat<'a> {
-    pub chat_type: &'a str, // "PRIVATE" or "GROUP"
-    pub user_id_1: Option<i32>, // NOT NULL only if chat_type == "PRIVATE"
-    pub user_id_2: Option<i32>, // NOT NULL only if chat_type == "PRIVATE"
+    pub chat_type: &'a str,
+    pub user_id_1: Option<i32>,
+    pub user_id_2: Option<i32>,
     pub created_at: Option<chrono::NaiveDateTime>,
-    pub group_name: Option<&'a str>, // NOT NULL only if chat_type == "GROUP"
+    pub group_name: Option<&'a str>,
 }
 
 /**
- * Struct representing a user retrieved from the database.
- * (used also to MODIFY an existing user)
+ * Struct representing a chat record retrieved from the database.
+ * Contains chat details including type, participants, and timestamps.
  */
 #[derive(Queryable, Debug, AsChangeset)]
 pub struct Chat {
@@ -63,6 +62,9 @@ pub fn get_chat_by_id(chat_id: i32) -> Option<Chat> {
  * Repository level function that creates a new private chat into the database.
  * # Arguments
  * `chat` - A CreatePrivateChat struct containing the chat details.
+ * # Returns
+ * A Result<Chat, String> which is Ok(Chat) if the chat was created successfully,
+ * Err(String) if there was an error.
  */
 pub fn create_private_chat(chat: CreatePrivateChat) -> Result<Chat, String> {
     println!(
@@ -73,7 +75,6 @@ pub fn create_private_chat(chat: CreatePrivateChat) -> Result<Chat, String> {
 
     use crate::schema::chats::dsl::*;
 
-    // we return the id of the newly created chat
     let connection = &mut establish_connection();
 
     let new_chat = NewChat {
@@ -85,7 +86,6 @@ pub fn create_private_chat(chat: CreatePrivateChat) -> Result<Chat, String> {
     };
     let res = diesel::insert_into(chats).values(&new_chat).execute(connection).unwrap_or(0);
     if res == 1 {
-        // we retrieve the id of the newly created chat
         let created_chat = chats
             .order(id.desc())
             .first::<Chat>(connection)
@@ -134,11 +134,12 @@ pub fn create_group_chat(chat: CreateGroupChat) -> Result<i32, String> {
     }
 }
 
-/// Repository level function that retrieves all chats for a given user ID from the database.
-/// # Arguments
-/// `user_id` - An integer representing the user ID whose chats are to be retrieved.
-/// # Returns
-/// A vector of Chat structs representing the chats of the specified user.
+/** Repository level function that retrieves all chats for a given user ID from the database.
+* # Arguments
+* `user_id` - An integer representing the user ID whose chats are to be retrieved.
+* # Returns
+* A vector of Chat structs representing the chats of the specified user.
+*/
 pub fn get_private_chats_for_user(user_id: i32) -> Vec<Chat> {
     println!("Retrieving private chats for user ID {:?}", user_id);
 
@@ -154,6 +155,11 @@ pub fn get_private_chats_for_user(user_id: i32) -> Vec<Chat> {
     results
 }
 
+/// Repository level function that retrieves all group chats for a given user ID from the database.
+/// # Arguments
+/// `user_id_` - An integer representing the user ID whose group chats are to be retrieved.
+/// # Returns
+/// A vector of Chat structs representing the group chats of the specified user.
 pub fn get_group_chats_for_user(user_id_: i32) -> Vec<Chat> {
     println!("Retrieving group chats for user ID {:?}", user_id_);
 
@@ -168,15 +174,15 @@ pub fn get_group_chats_for_user(user_id_: i32) -> Vec<Chat> {
         .select(chats::all_columns())
         .load::<Chat>(connection)
         .expect("Error loading group chats");
-    println!("Found group chats: {:?}", results);
     results
 }
 
-/// function to retrieve the chatType of the chat which id is passed as parameter
+/// Repository level function to retrieve the chat type of the chat with the given ID.
 /// # Arguments
-/// `chat_id` : the id of the chat we want to retrieve the type for
+/// `chat_id` - The ID of the chat whose type we want to retrieve.
 /// # Returns
-/// A String representing the chat type ("PRIVATE" or "GROUP")
+/// A Result<String, String> which is Ok(String) containing "PRIVATE" or "GROUP" if successful,
+/// Err(String) if the chat is not found or there was a database error.
 pub fn get_chat_type(chat_id: i32) -> Result<String, String> {
     use crate::schema::chats::dsl::*;
     let mut connection = establish_connection();
@@ -193,17 +199,15 @@ pub fn get_chat_type(chat_id: i32) -> Result<String, String> {
     }
 }
 
-/// function to check if a user is part of a private chat
+/// Repository level function to check if a user is part of a private chat.
 /// # Arguments
-/// `user_id` : the id of the user we want to check
-/// `chat_id` : the id of the private chat we want to check
+/// `user_id` - The ID of the user we want to check.
+/// `chat_id` - The ID of the private chat we want to check.
 /// # Returns
 /// A Result<bool, String> which is Ok(true) if the user is part of the private chat,
 /// Ok(false) if the user is not part of the private chat,
-/// Err(String) if there was an error (e.g. chat is not private)
+/// Err(String) if there was an error (e.g. chat is not private).
 pub fn is_user_part_of_private_chat(user_id: i32, chat_id: i32) -> Result<bool, String> {
-    // we check if chat is actually a private chat, if it's not then we return a String
-    // "NOT_PRIVATE_CHAT_ERROR"
     let chat_type_ = get_chat_type(chat_id);
     let chat_type_ = match chat_type_ {
         Ok(ct) => ct,
@@ -214,7 +218,6 @@ pub fn is_user_part_of_private_chat(user_id: i32, chat_id: i32) -> Result<bool, 
     if chat_type_ != "PRIVATE" {
         return Err("NOT_PRIVATE_CHAT_ERROR".to_string());
     }
-    // if it's actually a private chat, we check user_id_* and if one of them == to user_id param then true, else false
     use crate::schema::chats::dsl::*;
     let connection = &mut establish_connection();
     let chat = chats
@@ -228,17 +231,15 @@ pub fn is_user_part_of_private_chat(user_id: i32, chat_id: i32) -> Result<bool, 
     }
 }
 
-/// function to check if a user is part of a group chat
+/// Repository level function to check if a user is part of a group chat.
 /// # Arguments
-/// `user_id_` : the id of the user we want to check
-/// `chat_id_` : the id of the group chat we want to check
+/// `user_id_` - The ID of the user we want to check.
+/// `chat_id_` - The ID of the group chat we want to check.
 /// # Returns
 /// A Result<bool, String> which is Ok(true) if the user is part of the group chat,
 /// Ok(false) if the user is not part of the group chat,
-/// Err(String) if there was an error (e.g. chat is not group)
+/// Err(String) if there was an error (e.g. chat is not group).
 pub fn is_user_part_of_group_chat(user_id_: i32, chat_id_: i32) -> Result<bool, String> {
-    // we check if chat is actually a group chat, if it's not then we return a String
-    // "NOT_GROUP_CHAT_ERROR"
     let chat_type_ = get_chat_type(chat_id_);
     let chat_type_ = match chat_type_ {
         Ok(ct) => ct,
@@ -249,7 +250,6 @@ pub fn is_user_part_of_group_chat(user_id_: i32, chat_id_: i32) -> Result<bool, 
     if chat_type_ != "GROUP" {
         return Err("NOT_GROUP_CHAT_ERROR".to_string());
     }
-    // if it's actually a group chat, we check in chat_components table if user is part of that chat
     use crate::schema::chat_components::dsl::*;
     let connection = &mut establish_connection();
     let result = chat_components
@@ -263,10 +263,10 @@ pub fn is_user_part_of_group_chat(user_id_: i32, chat_id_: i32) -> Result<bool, 
     }
 }
 
-/// Function to check if a private chat between two users already exists
+/// Repository level function to check if a private chat between two users already exists.
 /// # Arguments
-/// `user_id_1` - The ID of the first user.
-/// `user_id_2` - The ID of the second user.
+/// `user_id_1_` - The ID of the first user.
+/// `user_id_2_` - The ID of the second user.
 /// # Returns
 /// A Result<bool, String> which is Ok(true) if the private chat exists,
 /// Ok(false) if the private chat does not exist,
@@ -278,18 +278,17 @@ pub fn does_private_chat_between_users_exist(
     use crate::schema::chats::dsl::*;
     let mut connection = establish_connection();
 
-    match
-        chats
-            .filter(
-                chat_type.eq("PRIVATE").and(
-                    user_id_1
-                        .eq(user_id_1_)
-                        .and(user_id_2.eq(user_id_2_))
-                        .or(user_id_1.eq(user_id_2_).and(user_id_2.eq(user_id_1_)))
-                )
+    match chats
+        .filter(chat_type
+            .eq("PRIVATE")
+            .and(user_id_1
+                .eq(user_id_1_)
+                .and(user_id_2.eq(user_id_2_))
+                .or(user_id_1.eq(user_id_2_).and(user_id_2.eq(user_id_1_)))
             )
-            .first::<Chat>(&mut connection)
-            .optional()
+        )
+        .first::<Chat>(&mut connection)
+        .optional()
     {
         Ok(Some(_)) => Ok(true),
         Ok(None) => Ok(false),
@@ -297,13 +296,13 @@ pub fn does_private_chat_between_users_exist(
     }
 }
 
-/// Function at repository level to update the last_message_at field of a chat
+/// Repository level function to update the last_message_at field of a chat.
 /// # Arguments
-/// `chat_id_` : the id of the chat to update
-/// `timestamp` : the new timestamp to set
+/// `chat_id_` - The ID of the chat to update.
+/// `timestamp` - The new timestamp to set.
 /// # Returns
 /// A Result<(), String> which is Ok(()) if the update was successful,
-/// Err(String) if there was an error (e.g. chat not found)
+/// Err(String) if there was an error (e.g. chat not found).
 pub fn update_chat_last_message_at(
     chat_id_: i32,
     timestamp: chrono::NaiveDateTime
@@ -348,6 +347,12 @@ pub fn get_users_in_group_chat(chat_id_: i32) -> Result<Vec<i32>, String> {
     Ok(user_ids)
 }
 
+/// Repository level function that retrieves all user IDs in a given private chat.
+/// # Arguments
+/// `chat_id_` - An integer representing the private chat ID whose user IDs are to be retrieved.
+/// # Returns
+/// A Result<Vec<i32>, String> which is Ok(Vec<i32>) containing user IDs if successful,
+/// Err(String) if the chat is not found or not private.
 pub fn get_users_in_private_chat(chat_id_: i32) -> Result<Vec<i32>, String> {
     let chat_opt = get_chat_by_id(chat_id_);
     match chat_opt {

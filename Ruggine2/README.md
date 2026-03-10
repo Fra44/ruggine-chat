@@ -1,0 +1,172 @@
+# RUGGINE: App di Chat Testuale
+
+## Introduzione
+Il documento descrive il progetto "Ruggine: App di Chat Testuale", sviluppato nel contesto del corso "Programmazione di Sistema" tenuto al Politecnico di Torino.
+L'obiettivo è quello di costrurire un applicativo per la gestione di un app testuale utilizzando il linguaggio Rust, le quali funzionalità richieste sono le seguenti : iscrizione, creazione e gestione di chat (private o gruppi) tramite un sistema di inviti, monitoraggio delle prestazioni.
+
+L'applicazione è composta da un server (backend) interamente sviluppato in Rust, mentre l'interfaccia è stata fatta utilizzando React + Vite (frontend), il che consente di poter essere utilizzata su ogni dispositivo che supporta un browser moderno.
+
+---
+
+### Partecipanti
+- **Francesco Magno (S346575)**
+- **Francesco Papini (S336426)**
+- **Vito Piazzolla (S347281)**
+- **Giacomo Scorza (S347145)**
+
+---
+
+## Indice
+1. [Manuale Utente](#manualeutente)  
+2. [Manuale del Progettista](#manualeprogettista)
+
+---
+
+## 1. Manuale Utente
+
+### Introduzione
+L'applicazione **Ruggine** offre una piattaforma di messaggistica, il sistema consente agli utenti di :
+- creare conversazioni private
+- creare conversazioni di gruppo
+- invio e ricezione di messaggi in real time
+- sistema di inviti per la gestione dei partecipanti alle chat
+
+### Piattaforme supportate
+L'interfaccia è esposta tramite un'applicazione web, perciò qualsiasi dispositivo con un browser moderno può suportarla.
+(Google Chrome, Opera, Firefox, Microsoft Edge, ecc...)
+
+### Requisiti Software/Librerie
+- Node.js: ≥ 18  
+- npm: ≥ 9.x (solitamente già incluso con Node 18)  
+- Rust: ≥ 1.63
+- k6: ≥ 1.6 (per eseguire gli stress test)
+
+### Installazione ed avvio
+- Scaricare l'applicazione, in questi diversi "modi" :
+    - scaricare il codice sorgente dalla repository remota ufficiale
+    - scaricare il codice come archivio `.zip` o `.tar.gz` ed estrarlo
+- La struttura del progetto è così fatta: 
+    - `frontend/` : contiene i file relativi al server React che si occupa di fornire le pagine al browser (UI)
+    - `backend/` : contiene i file relativi al backend server dell'applicazione
+    - `docker/` : contiene il dockerfile per lanciare un container che offre un servizio DB (postgres) per l'integrità dei dati.
+    - `stress-test/` : contiene lo script `stress.js` per eseguire gli stress test con k6
+1. **Installazione delle dipendenze :**
+    - all'interno del folder `frontend/` eseguire il comando  
+    ```npm install ```  
+    - all'interno del folder `docker/` eseguire il comando  
+    ```docker compose up -d```  
+    per lanciare il container contenente il database
+2. **Avvio dell'applicazione :**
+    - all'interno del folder `frontend/` lanciare il comando:  
+    ```npm run dev```
+    - all'interno del folder `backend/` lanciare il comando:  
+    ```cargo run```  
+    (che si occupa anche dell'installazione delle dipendenze necessarie)
+### Utilizzo
+Seguendo i passi della sezione "Installazione ed avvio", l'applicazione sarà in esecuzione.  
+Il frontend sarà raggiungibile tramite [http://localhost:5173](http://localhost:5173), mentre il backend starà girando su [http://localhost:3000](http://localhost:3000).
+
+1. **Registrazione e Login**  
+Collegarsi a [http://localhost:5173](http://localhost:5173), inizialmente si verrà automaticamente indirizzati alla pagina di **Login**, tramite la quale possiamo accedere inserendo **username** e **password**.  
+Se non si possiede un account, si può andare (tramite URL o tramite i bottoni all'interno della schermata) alla pagina di **Registrazione**.  
+Per registrare un account basterà inserire un username (deve essere UNIVOCO) ed una password. Una volta creato l'account si può effettuare il login.
+2. **Homepage**  
+Una volta effettuato il login con successo, si viene reindirizzati alla **Homepage**  
+Questa contiene, sul lato sinistro, la lista (scorribile) delle chat a cui l'utente partecipa, mentre sul lato destro, i messaggi della chat selezionata, insieme al textbox in cui scrivere il nuovo messaggio ed il tasto per inviarlo.  
+(Per vedere i messaggi una chat deve essere precedentemente selezionata cliccando su di essa)  
+    - ***Lista delle chat*** : contiene tutte le chat a cui l'utente partecipa, ordinate, dall'alto verso il basso, dalla chat con l'ultimo messaggio più recente alla chat con l'ultimo messaggio più vecchio.  
+    Viene fornita anche una *barra di ricerca* per filtrare le chat in base alla stringa di testo inserita.  
+    In questa sezione c'è anche il *tasto* per la *creazione* di una *nuova chat*, se cliccato chiede di inserire:
+        - username dell'utente con cui aprire una nuova *chat privata*
+        - lista degli username degli utenti da invitare in un nuovo *gruppo* che sta per essere creato 
+        - il *nome del gruppo* in caso venga inserita la lista di utenti
+        
+        Inoltre, è possibile effettuare il logout tramite il tasto **Logout** a disposizione in questa sezione.  
+        Da questa pagina è possibile selezionare una chat.
+    - ***Lista Messaggi*** : mostra i messaggi della chat selezionata, ordinati temporalmente e suddivisi per data. Inoltre contiene un textbox in cui inserire il nuovo messaggio da inviare all'interno della chat selezionata tramite il tasto di invio posizionato a destra del textbox.
+    - ***Gestione Inviti***  
+    quando un utente entra nell'applicazione, verrano mostrati a schermo, uno ad uno, gli inviti ancora in attesa di essere accettati (o rifiutati). Se gli inviti vengono ignorati, verranno mostrati al prossimo refresh della homepage
+3. **Stress Test e Monitoraggio delle Prestazioni**  
+Per eseguire lo stress test bisogna entrare nella directory `stress-test/` ed eseguire il comando:  
+```k6 run stress.js``` uppure ```npm run stress``` in automatico inizierà lo stress test, che simula diverse richieste parallele al server per una durata totale di 2 minuti. 
+Nel frattempo è possibile monitorare le prestazioni (CPU e RAM) del server, grazie al codice presente in `backend/src/monitor_cpu.rs` che ogni 2 minuti stampa in un file log in `backend/monitor_cpu.log` le informazioni relative alla CPU e alla RAM del server nel seguente formato:  
+```
+[Timestamp] CPU: X% | RAM: Y MB
+```
+
+---
+
+## 2. Manuale del Progettista
+- **Diagramma ER**
+```mermaid
+erDiagram
+    USERS ||--o{ CHATS : "partecipa (Private)"
+    USERS ||--o{ CHAT_COMPONENTS : "ha ruolo"
+    USERS ||--o{ MESSAGES : "invia"
+    USERS ||--o{ INVITES : "manda/riceve"
+    
+    CHATS ||--o{ CHAT_COMPONENTS : "composto da"
+    CHATS ||--o{ MESSAGES : "contiene"
+    CHATS ||--o{ INVITES : "riguarda"
+
+    USERS {
+        int id PK
+        string username
+        string hashed_password
+        timestamp created_at
+    }
+
+    CHATS {
+        int id PK
+        string chat_type
+        int user_id_1 FK
+        int user_id_2 FK
+        string group_name
+        timestamp created_at
+        timestamp last_message_at
+    }
+
+    CHAT_COMPONENTS {
+        int chat_id PK, FK
+        int user_id PK, FK
+        string role
+    }
+
+    MESSAGES {
+        int id PK
+        int chat_id FK
+        int sender_id FK
+        text content
+        timestamp sent_at
+    }
+
+    INVITES {
+        int id PK
+        int chat_id FK
+        int sender_id FK
+        int receiver_id FK
+        timestamp sent_at
+        boolean accepted
+    }
+```
+- **Architettura dell'applicazione**
+L'architettura dell'applicazione è basata su un modello client-server, dove il frontend (client) comunica con il backend (server) tramite API REST.
+Il server è gestito utilizzando 3 layers principali:
+    - **Layer di Presentazione** : gestisce le richieste HTTP in entrata, instradandole ai controller appropriati.
+    - **Layer di Logica di Business** : contiene la logica principale dell'applicazione, elaborando i dati e applicando le regole di business.
+    - **Layer di Accesso ai Dati** : interagisce con il database per eseguire operazioni CRUD (Create, Read, Update, Delete) sui dati.
+Vengono anche utilizzati WebSocket per la comunicazione in tempo reale tra client e server, permettendo l'invio e la ricezione immediata dei messaggi e degli inviti ai gruppi.
+
+- **Tecnologie e Librerie Utilizzate**
+    - **Backend (Rust)** :
+        - Actix-web : framework web per Rust, utilizzato per gestire le richieste HTTP e i WebSocket.
+        - Diesel : ORM (Object-Relational Mapping) per interagire con il database PostgreSQL.
+        - Tokio : runtime asincrono per Rust, utilizzato per gestire operazioni asincrone.
+        - Serde : libreria per la serializzazione e deserializzazione di dati.
+        - sysinfo : libreria per ottenere informazioni su RAM e CPU per diversi OS, senza dover scrivere codice specifico per ogni piattaforma.
+    - **Frontend (React + Vite)** :
+        - React : libreria JavaScript 
+        - Vite : fornisce un ambiente di sviluppo, con un semplice server che "trafferisce" i file al browser, trasformando al volo i file .jsx e/o .tsx in JavaScript standard, così da poter essere interpretati dal browser.
+    - **Stress Test** :
+        - k6 : strumento usato per fare stress test
+

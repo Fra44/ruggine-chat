@@ -1,0 +1,110 @@
+/* Main chat list item container with card-like styling */
+.chat-list-item {
+  background: white;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  border: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  display: flex;
+  align-items: flex-start;
+}
+
+/* Hover effect for chat list items with subtle lift animation */
+.chat-list-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+}
+
+/* Circular avatar container for chat profile pictures or initials */
+.chat-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--brand);
+  flex: 0 0 48px;
+}
+
+/* Styling for SVG icons within avatars */
+.chat-avatar svg {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: block;
+}
+
+/* Main content area of chat list items, containing text elements */
+.chat-item-body {
+  min-width: 0;
+  text-align: left;
+}
+
+/* Chat name/title styling with bold font weight */
+.chat-item-name {
+  font-weight: 700;
+  margin-bottom: 4px;
+  font-size: 1rem;
+  text-align: left;
+}
+
+/* Subtitle text for last message preview or additional info */
+.chat-item-subtitle {
+  font-size: 0.85rem;
+  margin-top: 2px;
+}
+
+/* Timestamp styling with muted color */
+.chat-item-time {
+  color: #6c757d;
+  font-size: 0.75rem;
+}
+
+/* Active (selected) style */
+.chat-list-item.active {
+  background: var(--brand);
+  color: white;
+}
+
+/* Avatar styling when chat item is selected */
+.chat-list-item.active .chat-avatar {
+  background: rgba(255,255,255,0.12);
+  color: white;
+}
+
+/* Ensure subtitle/time become highly visible when an item is active */
+.chat-list-item.active .chat-item-subtitle,
+.chat-list-item.active .chat-item-time,
+.chat-list-item.active .chat-item-subtitle.text-muted,
+.chat-list-item.active .chat-item-time.text-muted {
+  color: rgba(255,255,255,0.95) !important;
+}
+
+/* Slightly brighter subtitle for non-selected items for better readability */
+.chat-item-subtitle.text-muted {
+  color: rgba(156,162,168,0.95);
+}
+
+/* Container for grouping chat list items with padding */
+.chat-list-group {
+  padding: 8px;
+}
+
+/* Remove top margin and ensure rounded top corners for first item in group */
+.chat-list-group .chat-list-item:first-child {
+  margin-top: 0;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+/* Remove bottom margin and ensure rounded bottom corners for last item in group */
+.chat-list-group .chat-list-item:last-child {
+  margin-bottom: 0;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
