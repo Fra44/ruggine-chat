@@ -1,113 +1,204 @@
-# RUGGINE: App di Chat Testuale
+# Ruggine — Text Chat Application
 
-## Introduzione
-Il documento descrive il progetto "Ruggine: App di Chat Testuale", sviluppato nel contesto del corso "Programmazione di Sistema" tenuto al Politecnico di Torino.
-L'obiettivo è quello di costrurire un applicativo per la gestione di un app testuale utilizzando il linguaggio Rust, le quali funzionalità richieste sono le seguenti : iscrizione, creazione e gestione di chat (private o gruppi) tramite un sistema di inviti, monitoraggio delle prestazioni.
+Ruggine is a web-based text chat application developed for the **System Programming** course at Politecnico di Torino.
 
-L'applicazione è composta da un server (backend) interamente sviluppato in Rust, mentre l'interfaccia è stata fatta utilizzando React + Vite (frontend), il che consente di poter essere utilizzata su ogni dispositivo che supporta un browser moderno.
+The application supports private and group conversations, real-time messaging, an invitation system, group member management, and server performance monitoring.
 
----
+The project follows a client-server architecture, with a **Rust backend** and a **React + TypeScript frontend**.
 
-### Partecipanti
-- **Francesco Magno (S346575)**
-- **Francesco Papini (S336426)**
-- **Vito Piazzolla (S347281)**
-- **Giacomo Scorza (S347145)**
+## Features
 
----
+* User registration and authentication
+* Private conversations
+* Group conversations
+* Real-time message sending and receiving
+* Group invitation system
+* Group member management
+* Chat search
+* Username autocomplete when creating chats
+* Server performance monitoring
+* Stress testing with k6
 
-## Indice
-1. [Manuale Utente](#manualeutente)  
-2. [Manuale del Progettista](#manualeprogettista)
+## Architecture
 
----
+The project is organized into the following components:
 
-## 1. Manuale Utente
-
-### Introduzione
-L'applicazione **Ruggine** offre una piattaforma di messaggistica, il sistema consente agli utenti di :
-- creare conversazioni private
-- creare conversazioni di gruppo
-- invio e ricezione di messaggi in real time
-- sistema di inviti per la gestione dei partecipanti alle chat
-
-### Piattaforme supportate
-L'interfaccia è esposta tramite un'applicazione web, perciò qualsiasi dispositivo con un browser moderno può suportarla.
-(Google Chrome, Opera, Firefox, Microsoft Edge, ecc...)
-
-### Requisiti Software/Librerie
-- Node.js: ≥ 18  
-- npm: ≥ 9.x (solitamente già incluso con Node 18)  
-- Rust: ≥ 1.63
-- k6: ≥ 1.6 (per eseguire gli stress test)
-
-### Installazione ed avvio
-- Scaricare l'applicazione, in questi diversi "modi" :
-    - scaricare il codice sorgente dalla repository remota ufficiale
-    - scaricare il codice come archivio `.zip` o `.tar.gz` ed estrarlo
-- La struttura del progetto è così fatta: 
-    - `frontend/` : contiene i file relativi al server React che si occupa di fornire le pagine al browser (UI)
-    - `backend/` : contiene i file relativi al backend server dell'applicazione
-    - `docker/` : contiene il dockerfile per lanciare un container che offre un servizio DB (postgres) per l'integrità dei dati.
-    - `stress-test/` : contiene lo script `stress.js` per eseguire gli stress test con k6
-1. **Installazione delle dipendenze :**
-    - all'interno del folder `frontend/` eseguire il comando  
-    ```npm install ```  
-    - all'interno del folder `docker/` eseguire il comando  
-    ```docker compose up -d```  
-    per lanciare il container contenente il database
-2. **Avvio dell'applicazione :**
-    - all'interno del folder `frontend/` lanciare il comando:  
-    ```npm run dev```
-    - all'interno del folder `backend/` lanciare il comando:  
-    ```cargo run```  
-    (che si occupa anche dell'installazione delle dipendenze necessarie)
-### Utilizzo
-Seguendo i passi della sezione "Installazione ed avvio", l'applicazione sarà in esecuzione.  
-Il frontend sarà raggiungibile tramite [http://localhost:5173](http://localhost:5173), mentre il backend starà girando su [http://localhost:3000](http://localhost:3000).
-
-1. **Registrazione e Login**  
-Collegarsi a [http://localhost:5173](http://localhost:5173), inizialmente si verrà automaticamente indirizzati alla pagina di **Login**, tramite la quale possiamo accedere inserendo **username** e **password**.  
-Se non si possiede un account, si può andare (tramite URL o tramite i bottoni all'interno della schermata) alla pagina di **Registrazione**.  
-Per registrare un account basterà inserire un username (deve essere UNIVOCO) ed una password. Una volta creato l'account si può effettuare il login.
-2. **Homepage**  
-Una volta effettuato il login con successo, si viene reindirizzati alla **Homepage**  
-Questa contiene, sul lato sinistro, la lista (scorribile) delle chat a cui l'utente partecipa, mentre sul lato destro, i messaggi della chat selezionata, insieme al textbox in cui scrivere il nuovo messaggio ed il tasto per inviarlo.  
-(Per vedere i messaggi una chat deve essere precedentemente selezionata cliccando su di essa)  
-    - ***Lista delle chat*** : contiene tutte le chat a cui l'utente partecipa, ordinate, dall'alto verso il basso, dalla chat con l'ultimo messaggio più recente alla chat con l'ultimo messaggio più vecchio.  
-    Viene fornita anche una *barra di ricerca* per filtrare le chat in base alla stringa di testo inserita.  
-    In questa sezione c'è anche il *tasto* per la *creazione* di una *nuova chat*, se cliccato chiede di inserire:
-        - username dell'utente con cui aprire una nuova *chat privata*
-        - lista degli username degli utenti da invitare in un nuovo *gruppo* che sta per essere creato 
-        - il *nome del gruppo* in caso venga inserita la lista di utenti
-        
-        Inoltre, è possibile effettuare il logout tramite il tasto **Logout** a disposizione in questa sezione.  
-        Da questa pagina è possibile selezionare una chat.
-    - ***Lista Messaggi*** : mostra i messaggi della chat selezionata, ordinati temporalmente e suddivisi per data. Inoltre contiene un textbox in cui inserire il nuovo messaggio da inviare all'interno della chat selezionata tramite il tasto di invio posizionato a destra del textbox.
-    - ***Gestione Inviti***  
-    quando un utente entra nell'applicazione, verrano mostrati a schermo, uno ad uno, gli inviti ancora in attesa di essere accettati (o rifiutati). Se gli inviti vengono ignorati, verranno mostrati al prossimo refresh della homepage
-3. **Stress Test e Monitoraggio delle Prestazioni**  
-Per eseguire lo stress test bisogna entrare nella directory `stress-test/` ed eseguire il comando:  
-```k6 run stress.js``` uppure ```npm run stress``` in automatico inizierà lo stress test, che simula diverse richieste parallele al server per una durata totale di 2 minuti. 
-Nel frattempo è possibile monitorare le prestazioni (CPU e RAM) del server, grazie al codice presente in `backend/src/monitor_cpu.rs` che ogni 2 minuti stampa in un file log in `backend/monitor_cpu.log` le informazioni relative alla CPU e alla RAM del server nel seguente formato:  
-```
-[Timestamp] CPU: X% | RAM: Y MB
+```text
+Ruggine/
+├── frontend/           # React + TypeScript web client
+├── backend/            # Rust server
+├── docker/
+│   └── postgres/       # PostgreSQL database setup
+├── stress-test/        # k6 stress tests
+└── swagger.yaml        # REST API specification
 ```
 
----
+The frontend communicates with the backend through a **REST API** for standard operations and **WebSockets** for real-time events.
 
-## 2. Manuale del Progettista
-- **Diagramma ER**
+The backend is structured around separate components for:
+
+* **API** — HTTP endpoints and request handling
+* **Business logic and models** — application data and logic
+* **Repository** — database access
+* **Authentication** — password handling and JWT-based authentication
+* **WebSockets** — real-time communication
+
+PostgreSQL is used as the persistent database, while Docker Compose is used to simplify the database setup.
+
+## My Contribution
+
+I worked primarily on the **frontend together with Vito Piazzolla**, contributing to the design and implementation of the React/TypeScript client and its interaction with the backend.
+
+My work included:
+
+* Developing and organizing the main chat interface
+* Working on chat and group management interactions
+* Integrating the frontend with the REST API
+* Working on real-time communication through WebSockets
+* Implementing chat search and username autocomplete
+* Handling authentication state and client-side navigation
+* Working on message, invitation, and group-member management interfaces
+
+The frontend was developed collaboratively, while **Francesco Papini and Giacomo Scorza primarily worked on the Rust backend**.
+
+## Technologies
+
+### Backend
+
+* **Rust**
+* **Actix Web** — HTTP server and WebSocket handling
+* **Diesel** — ORM for PostgreSQL
+* **Tokio** — asynchronous runtime
+* **Serde** — serialization and deserialization
+* **sysinfo** — CPU and RAM monitoring
+* **PostgreSQL**
+
+### Frontend
+
+* **React**
+* **TypeScript**
+* **Vite**
+* **React Router**
+* **React Bootstrap**
+* **react-hot-toast**
+
+### Testing
+
+* **k6** — load and stress testing
+
+### Infrastructure
+
+* **Docker / Docker Compose**
+* **PostgreSQL**
+
+## Getting Started
+
+### Requirements
+
+* Node.js ≥ 18
+* npm ≥ 9
+* Rust ≥ 1.63
+* Docker
+* k6 ≥ 1.6 (only required for stress testing)
+
+### 1. Install frontend dependencies
+
+From the `frontend/` directory:
+
+```bash
+npm install
+```
+
+### 2. Start the database
+
+From the `docker/postgres/` directory:
+
+```bash
+docker compose up -d
+```
+
+This starts the PostgreSQL database used by the backend.
+
+### 3. Start the backend
+
+From the `backend/` directory:
+
+```bash
+cargo run
+```
+
+The backend runs on:
+
+```text
+http://localhost:3000
+```
+
+### 4. Start the frontend
+
+From the `frontend/` directory:
+
+```bash
+npm run dev
+```
+
+The web application is available at:
+
+```text
+http://localhost:5173
+```
+
+## Stress Testing
+
+The `stress-test/` directory contains the k6 scripts used to evaluate the server under concurrent requests.
+
+Run the stress test with:
+
+```bash
+k6 run stress.js
+```
+
+or:
+
+```bash
+npm run stress
+```
+
+The stress test simulates multiple concurrent requests against the server for approximately two minutes.
+
+Server CPU and RAM usage can be monitored through:
+
+```text
+backend/src/monitor_cpu.rs
+```
+
+The collected information is written to:
+
+```text
+backend/monitor_cpu.log
+```
+
+## Database
+
+The application uses PostgreSQL to persist:
+
+* Users
+* Chats
+* Chat members and roles
+* Messages
+* Invitations
+
+The database schema is represented by the following relationships:
+
 ```mermaid
 erDiagram
-    USERS ||--o{ CHATS : "partecipa (Private)"
-    USERS ||--o{ CHAT_COMPONENTS : "ha ruolo"
-    USERS ||--o{ MESSAGES : "invia"
-    USERS ||--o{ INVITES : "manda/riceve"
-    
-    CHATS ||--o{ CHAT_COMPONENTS : "composto da"
-    CHATS ||--o{ MESSAGES : "contiene"
-    CHATS ||--o{ INVITES : "riguarda"
+    USERS ||--o{ CHATS : "participates"
+    USERS ||--o{ CHAT_COMPONENTS : "has role"
+    USERS ||--o{ MESSAGES : "sends"
+    USERS ||--o{ INVITES : "sends/receives"
+
+    CHATS ||--o{ CHAT_COMPONENTS : "contains"
+    CHATS ||--o{ MESSAGES : "contains"
+    CHATS ||--o{ INVITES : "has"
 
     USERS {
         int id PK
@@ -149,24 +240,12 @@ erDiagram
         boolean accepted
     }
 ```
-- **Architettura dell'applicazione**
-L'architettura dell'applicazione è basata su un modello client-server, dove il frontend (client) comunica con il backend (server) tramite API REST.
-Il server è gestito utilizzando 3 layers principali:
-    - **Layer di Presentazione** : gestisce le richieste HTTP in entrata, instradandole ai controller appropriati.
-    - **Layer di Logica di Business** : contiene la logica principale dell'applicazione, elaborando i dati e applicando le regole di business.
-    - **Layer di Accesso ai Dati** : interagisce con il database per eseguire operazioni CRUD (Create, Read, Update, Delete) sui dati.
-Vengono anche utilizzati WebSocket per la comunicazione in tempo reale tra client e server, permettendo l'invio e la ricezione immediata dei messaggi e degli inviti ai gruppi.
 
-- **Tecnologie e Librerie Utilizzate**
-    - **Backend (Rust)** :
-        - Actix-web : framework web per Rust, utilizzato per gestire le richieste HTTP e i WebSocket.
-        - Diesel : ORM (Object-Relational Mapping) per interagire con il database PostgreSQL.
-        - Tokio : runtime asincrono per Rust, utilizzato per gestire operazioni asincrone.
-        - Serde : libreria per la serializzazione e deserializzazione di dati.
-        - sysinfo : libreria per ottenere informazioni su RAM e CPU per diversi OS, senza dover scrivere codice specifico per ogni piattaforma.
-    - **Frontend (React + Vite)** :
-        - React : libreria JavaScript 
-        - Vite : fornisce un ambiente di sviluppo, con un semplice server che "trafferisce" i file al browser, trasformando al volo i file .jsx e/o .tsx in JavaScript standard, così da poter essere interpretati dal browser.
-    - **Stress Test** :
-        - k6 : strumento usato per fare stress test
+## Team
 
+Developed as a team project for the **System Programming** course at Politecnico di Torino.
+
+* **Francesco Magno** — frontend development, together with Vito Piazzolla
+* **Vito Piazzolla** — frontend development, together with Francesco Magno
+* **Francesco Papini** — backend development
+* **Giacomo Scorza** — backend development
